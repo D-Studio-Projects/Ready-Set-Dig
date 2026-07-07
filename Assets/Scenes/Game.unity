@@ -870,6 +870,43 @@ MonoBehaviour:
   maxImpulse: 15
   speed: 2
   chargeBar: {fileID: 185430379}
+--- !u!114 &661069617
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 661069611}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3b26044d7bc4c04a80b88a2810a14a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxEnergy: 100
+  digDrainPerSecond: 8
+  defaultObstacleMultiplier: 2
+  obstacleTag: Obstacle
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 0
+--- !u!114 &661069618
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 661069611}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a40e25aef0d4e21b97f284f017900a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerEnergy: {fileID: 661069617}
+  playerMovement: {fileID: 661069615}
+  energyBar: {fileID: 0}
+  speedText: {fileID: 0}
+  speedSuffix: " m/s"
+  drawFallbackHud: 1
 --- !u!1 &887427842
 GameObject:
   m_ObjectHideFlags: 0
@@ -1318,6 +1355,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5079589179052376128, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
       insertIndex: -1
       addedObject: {fileID: 661069616}
+    - targetCorrespondingSourceObject: {fileID: 5079589179052376128, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 661069617}
+    - targetCorrespondingSourceObject: {fileID: 5079589179052376128, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 661069618}
     - targetCorrespondingSourceObject: {fileID: 6133118655665257551, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1206896336}
