@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+
+[RequireComponent(typeof(PlayerMovement))]
 public class PlayerStartDrop : MonoBehaviour
 {
     public Rigidbody2D rb;
@@ -10,27 +12,42 @@ public class PlayerStartDrop : MonoBehaviour
     [Header("Timing bar")]
     public float speed = 2f;
 
+    private PlayerMovement movement;
     private float charge;
     private float dir = 1f;
     private bool hasStarted;
+
     public Slider chargeBar;
 
-    void Update()
+    private void Awake()
     {
-        if (!hasStarted)
+        movement = GetComponent<PlayerMovement>();
+
+        if (rb == null)
         {
-            HandleBar();
-
-            chargeBar.value = charge;
-
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                StartDrop();
-            }
+            rb = GetComponent<Rigidbody2D>();
         }
     }
 
-    void HandleBar()
+    private void Update()
+    {
+        if (hasStarted)
+            return;
+
+        HandleBar();
+
+        if (chargeBar != null)
+        {
+            chargeBar.value = charge;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            StartDrop();
+        }
+    }
+
+    private void HandleBar()
     {
         charge += dir * speed * Time.deltaTime;
 
@@ -46,15 +63,14 @@ public class PlayerStartDrop : MonoBehaviour
         }
     }
 
-    void StartDrop()
+    private void StartDrop()
     {
-        rb.gravityScale = 0.15f;
         hasStarted = true;
+        movement.StartRun(charge);
 
-        float impulse = charge * maxImpulse;
-
-        rb.AddForce(Vector2.down * impulse, ForceMode2D.Impulse);
-        chargeBar.enabled = false;
+        if (chargeBar != null)
+        {
+            chargeBar.gameObject.SetActive(false);
+        }
     }
-
 }
