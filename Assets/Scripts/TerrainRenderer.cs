@@ -21,57 +21,41 @@ public class TerrainRenderer : MonoBehaviour
     private Texture2D texture;
     private SpriteRenderer spriteRenderer;
 
-    void Start()
+    private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
-
-        texture = new Texture2D(terrain.Width, terrain.Height);
-
-        texture.filterMode = FilterMode.Point;
-        texture.wrapMode = TextureWrapMode.Clamp;
-
-        DrawEntireMap();
     }
 
-    void Update()
+    private void OnEnable()
     {
-        DrawEntireMap();
-    }
-
-    void DrawEntireMap()
-    {
-        for (int x = 0; x < terrain.Width; x++)
+        if (terrain != null)
         {
-            for (int y = 0; y < terrain.Height; y++)
-            {
-                TerrainType cell = terrain.GetCell(x, y);
+            terrain.CellsChanged += DrawDirtyRect;
+        }
+    }
 
-                switch (cell)
-                {
-                    case TerrainType.Air:
-                        texture.SetPixel(x, y, Color.clear);
-                        break;
+    private void OnDisable()
+    {
+        if (terrain != null)
+        {
+            terrain.CellsChanged -= DrawDirtyRect;
+        }
+    }
 
-                    case TerrainType.Dirt:
-                        texture.SetPixel(x, y, dirtColor);
-                        break;
-
-                    case TerrainType.Stone:
-                        texture.SetPixel(x, y, stoneColor);
-                        break;
-
-                    case TerrainType.Iron:
-                        texture.SetPixel(x, y, ironColor);
-                        break;
-
-                    case TerrainType.Gold:
-                        texture.SetPixel(x, y, goldColor);
-                        break;
-                }
-            }
+    private void Start()
+    {
+        if (terrain == null)
+        {
+            Debug.LogError("TerrainRenderer needs a Terrain reference.", this);
+            enabled = false;
+            return;
         }
 
-        texture.Apply();
+        texture = new Texture2D(terrain.Width, terrain.Height)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp
+        };
 
         spriteRenderer.sprite = Sprite.Create(
             texture,
@@ -79,5 +63,67 @@ public class TerrainRenderer : MonoBehaviour
             new Vector2(.5f, .5f),
             terrain.PixelsPerUnit
         );
+
+        DrawEntireMap();
+    }
+
+    private void DrawEntireMap()
+    {
+        DrawCells(new RectInt(0, 0, terrain.Width, terrain.Height));
+        texture.Apply(false);
+    }
+
+    private void DrawDirtyRect(RectInt dirtyRect)
+    {
+        if (texture == null)
+            return;
+
+        RectInt clampedRect = ClampToTerrain(dirtyRect);
+
+        if (clampedRect.width <= 0 || clampedRect.height <= 0)
+            return;
+
+        DrawCells(clampedRect);
+        texture.Apply(false);
+    }
+
+    private RectInt ClampToTerrain(RectInt rect)
+    {
+        int xMin = Mathf.Clamp(rect.xMin, 0, terrain.Width);
+        int yMin = Mathf.Clamp(rect.yMin, 0, terrain.Height);
+        int xMax = Mathf.Clamp(rect.xMax, 0, terrain.Width);
+        int yMax = Mathf.Clamp(rect.yMax, 0, terrain.Height);
+
+        return new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
+    }
+
+    private void DrawCells(RectInt rect)
+    {
+        for (int x = rect.xMin; x < rect.xMax; x++)
+        {
+            for (int y = rect.yMin; y < rect.yMax; y++)
+            {
+                texture.SetPixel(x, y, GetColor(terrain.GetCell(x, y)));
+            }
+        }
+    }
+
+    private Color GetColor(TerrainType cell)
+    {
+        switch (cell)
+        {
+            case TerrainType.Air:
+                return Color.clear;
+            case TerrainType.Dirt:
+                return dirtColor;
+            case TerrainType.Stone:
+                return stoneColor;
+            case TerrainType.Iron:
+                return ironColor;
+            case TerrainType.Gold:
+                return goldColor;
+            default:
+                return Color.magenta;
+        }
     }
 }
