@@ -1,81 +1,109 @@
 using UnityEngine;
 using static Terrain;
 
-[RequireComponent(typeof(SpriteRenderer))]
 public class TerrainRenderer : MonoBehaviour
 {
-    [SerializeField] private Terrain terrain;
+    #region Fields
+
+    [Header("References")]
+    [SerializeField]
+    private Terrain _terrain;
 
     [SerializeField]
-    private Color dirtColor = new Color(0.35f, 0.22f, 0.12f);
+    private SpriteRenderer _targetRenderer;
+
+    [Header("Colors")]
+    [SerializeField]
+    private Color _dirtColor = new Color(0.35f, 0.22f, 0.12f);
 
     [SerializeField]
-    private Color stoneColor = Color.gray;
+    private Color _stoneColor = Color.gray;
 
     [SerializeField]
-    private Color ironColor = Color.yellow;
+    private Color _ironColor = Color.yellow;
 
     [SerializeField]
-    private Color goldColor = new Color(1f, 0.75f, 0f);
+    private Color _goldColor = new Color(1f, 0.75f, 0f);
 
-    private Texture2D texture;
-    private SpriteRenderer spriteRenderer;
+    private Texture2D _texture;
 
-    private void Awake()
-    {
-        spriteRenderer = GetComponent<SpriteRenderer>();
-    }
+    #endregion
+
+    #region Properties
+
+    #endregion
+
+    #region Events
+
+    #endregion
+
+    #region Unity Methods
 
     private void OnEnable()
     {
-        if (terrain != null)
+        if (_terrain != null)
         {
-            terrain.CellsChanged += DrawDirtyRect;
+            _terrain.CellsChanged += DrawDirtyRect;
         }
     }
 
     private void OnDisable()
     {
-        if (terrain != null)
+        if (_terrain != null)
         {
-            terrain.CellsChanged -= DrawDirtyRect;
+            _terrain.CellsChanged -= DrawDirtyRect;
         }
     }
 
     private void Start()
     {
-        if (terrain == null)
+        if (_terrain == null)
         {
             Debug.LogError("TerrainRenderer needs a Terrain reference.", this);
             enabled = false;
             return;
         }
 
-        texture = new Texture2D(terrain.Width, terrain.Height)
+        if (_targetRenderer == null)
+        {
+            Debug.LogError("TerrainRenderer needs a SpriteRenderer reference.", this);
+            enabled = false;
+            return;
+        }
+
+        _texture = new Texture2D(_terrain.Width, _terrain.Height)
         {
             filterMode = FilterMode.Point,
             wrapMode = TextureWrapMode.Clamp
         };
 
-        spriteRenderer.sprite = Sprite.Create(
-            texture,
-            new Rect(0, 0, terrain.Width, terrain.Height),
+        _targetRenderer.sprite = Sprite.Create(
+            _texture,
+            new Rect(0, 0, _terrain.Width, _terrain.Height),
             new Vector2(.5f, .5f),
-            terrain.PixelsPerUnit
+            _terrain.PixelsPerUnit
         );
 
         DrawEntireMap();
     }
 
+    #endregion
+
+    #region Public Methods
+
+    #endregion
+
+    #region Private Methods
+
     private void DrawEntireMap()
     {
-        DrawCells(new RectInt(0, 0, terrain.Width, terrain.Height));
-        texture.Apply(false);
+        DrawCells(new RectInt(0, 0, _terrain.Width, _terrain.Height));
+        _texture.Apply(false);
     }
 
     private void DrawDirtyRect(RectInt dirtyRect)
     {
-        if (texture == null)
+        if (_texture == null)
             return;
 
         RectInt clampedRect = ClampToTerrain(dirtyRect);
@@ -84,15 +112,15 @@ public class TerrainRenderer : MonoBehaviour
             return;
 
         DrawCells(clampedRect);
-        texture.Apply(false);
+        _texture.Apply(false);
     }
 
     private RectInt ClampToTerrain(RectInt rect)
     {
-        int xMin = Mathf.Clamp(rect.xMin, 0, terrain.Width);
-        int yMin = Mathf.Clamp(rect.yMin, 0, terrain.Height);
-        int xMax = Mathf.Clamp(rect.xMax, 0, terrain.Width);
-        int yMax = Mathf.Clamp(rect.yMax, 0, terrain.Height);
+        int xMin = Mathf.Clamp(rect.xMin, 0, _terrain.Width);
+        int yMin = Mathf.Clamp(rect.yMin, 0, _terrain.Height);
+        int xMax = Mathf.Clamp(rect.xMax, 0, _terrain.Width);
+        int yMax = Mathf.Clamp(rect.yMax, 0, _terrain.Height);
 
         return new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
     }
@@ -103,7 +131,7 @@ public class TerrainRenderer : MonoBehaviour
         {
             for (int y = rect.yMin; y < rect.yMax; y++)
             {
-                texture.SetPixel(x, y, GetColor(terrain.GetCell(x, y)));
+                _texture.SetPixel(x, y, GetColor(_terrain.GetCell(x, y)));
             }
         }
     }
@@ -115,15 +143,17 @@ public class TerrainRenderer : MonoBehaviour
             case TerrainType.Air:
                 return Color.clear;
             case TerrainType.Dirt:
-                return dirtColor;
+                return _dirtColor;
             case TerrainType.Stone:
-                return stoneColor;
+                return _stoneColor;
             case TerrainType.Iron:
-                return ironColor;
+                return _ironColor;
             case TerrainType.Gold:
-                return goldColor;
+                return _goldColor;
             default:
                 return Color.magenta;
         }
     }
+
+    #endregion
 }

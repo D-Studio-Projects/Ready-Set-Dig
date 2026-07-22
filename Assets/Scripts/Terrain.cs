@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 
-[RequireComponent(typeof(SpriteRenderer))]
 public class Terrain : MonoBehaviour
 {
     public enum TerrainType : byte
