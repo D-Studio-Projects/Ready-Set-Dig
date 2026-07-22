@@ -3,88 +3,121 @@ using UnityEngine.UI;
 
 public class PlayerHud : MonoBehaviour
 {
-    [SerializeField] private PlayerEnergy playerEnergy;
-    [SerializeField] private PlayerMovement playerMovement;
-    [SerializeField] private Slider energyBar;
-    [SerializeField] private Text speedText;
-    [SerializeField] private string speedSuffix = " m/s";
-    [SerializeField] private bool drawFallbackHud = true;
+    #region Fields
+
+    [Header("References")]
+    [SerializeField]
+    private PlayerEnergy _playerEnergy;
+
+    [SerializeField]
+    private PlayerMovement _playerMovement;
+
+    [SerializeField]
+    private Slider _energyBar;
+
+    [SerializeField]
+    private Text _speedText;
+
+    [Header("Fallback")]
+    [SerializeField]
+    private string _speedSuffix = " m/s";
+
+    [SerializeField]
+    private bool _drawFallbackHud = true;
 
     private const float FallbackWidth = 220f;
     private const float FallbackHeight = 22f;
 
-    private void Awake()
-    {
-        if (playerEnergy == null)
-        {
-            playerEnergy = FindFirstObjectByType<PlayerEnergy>();
-        }
+    #endregion
 
-        if (playerMovement == null)
-        {
-            playerMovement = FindFirstObjectByType<PlayerMovement>();
-        }
-    }
+    #region Properties
+
+    #endregion
+
+    #region Events
+
+    #endregion
+
+    #region Unity Methods
 
     private void OnEnable()
     {
-        if (playerEnergy != null)
+        if (_playerEnergy != null)
         {
-            playerEnergy.EnergyChanged += UpdateEnergyBar;
+            _playerEnergy.EnergyChanged += UpdateEnergyBar;
         }
     }
 
     private void OnDisable()
     {
-        if (playerEnergy != null)
+        if (_playerEnergy != null)
         {
-            playerEnergy.EnergyChanged -= UpdateEnergyBar;
+            _playerEnergy.EnergyChanged -= UpdateEnergyBar;
         }
     }
 
     private void Start()
     {
-        if (playerEnergy != null)
+        if (_playerEnergy != null)
         {
-            UpdateEnergyBar(playerEnergy.CurrentEnergy, playerEnergy.MaxEnergy);
+            UpdateEnergyBar(_playerEnergy.CurrentEnergy, _playerEnergy.MaxEnergy);
         }
     }
 
     private void Update()
     {
-        if (speedText != null && playerMovement != null)
+        if (_speedText != null && _playerMovement != null)
         {
-            speedText.text = $"{playerMovement.CurrentSpeed:0.0}{speedSuffix}";
+            _speedText.text = $"{_playerMovement.CurrentSpeed:0.0}{_speedSuffix}";
         }
-    }
-
-    private void UpdateEnergyBar(float currentEnergy, float maxEnergy)
-    {
-        if (energyBar == null)
-            return;
-
-        energyBar.maxValue = maxEnergy;
-        energyBar.value = currentEnergy;
     }
 
     private void OnGUI()
     {
-        if (!drawFallbackHud || playerEnergy == null || playerMovement == null)
+        if (!_drawFallbackHud || _playerEnergy == null || _playerMovement == null)
             return;
 
-        if (energyBar == null)
-        {
-            Rect background = new Rect(20f, 20f, FallbackWidth, FallbackHeight);
-            Rect fill = new Rect(20f, 20f, FallbackWidth * playerEnergy.Normalized, FallbackHeight);
-
-            GUI.Box(background, string.Empty);
-            GUI.Box(fill, string.Empty);
-            GUI.Label(new Rect(24f, 20f, FallbackWidth, FallbackHeight), $"Energy {playerEnergy.CurrentEnergy:0}/{playerEnergy.MaxEnergy:0}");
-        }
-
-        if (speedText == null)
-        {
-            GUI.Label(new Rect(20f, 48f, FallbackWidth, FallbackHeight), $"Speed {playerMovement.CurrentSpeed:0.0}{speedSuffix}");
-        }
+        DrawFallbackEnergyBar();
+        DrawFallbackSpeedText();
     }
+
+    #endregion
+
+    #region Public Methods
+
+    #endregion
+
+    #region Private Methods
+
+    private void UpdateEnergyBar(float currentEnergy, float maxEnergy)
+    {
+        if (_energyBar == null)
+            return;
+
+        _energyBar.maxValue = maxEnergy;
+        _energyBar.value = currentEnergy;
+    }
+
+    private void DrawFallbackEnergyBar()
+    {
+        if (_energyBar != null)
+            return;
+
+        Rect background = new Rect(20f, 20f, FallbackWidth, FallbackHeight);
+        Rect fill = new Rect(20f, 20f, FallbackWidth * _playerEnergy.Normalized, FallbackHeight);
+
+        GUI.Box(background, string.Empty);
+        GUI.Box(fill, string.Empty);
+        GUI.Label(new Rect(24f, 20f, FallbackWidth, FallbackHeight), $"Energy {_playerEnergy.CurrentEnergy:0}/{_playerEnergy.MaxEnergy:0}");
+    }
+
+    private void DrawFallbackSpeedText()
+    {
+        if (_speedText != null)
+            return;
+
+        GUI.Label(new Rect(20f, 48f, FallbackWidth, FallbackHeight), $"Speed {_playerMovement.CurrentSpeed:0.0}{_speedSuffix}");
+    }
+
+    #endregion
 }

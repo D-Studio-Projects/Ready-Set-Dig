@@ -1,120 +1,187 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMovement : MonoBehaviour
 {
+    #region Fields
+
+    [Header("References")]
+    [SerializeField]
+    private Rigidbody2D _rigidbody;
+
     [Header("Vertical Movement")]
-    [SerializeField] private float baseFallSpeed = 6f;
-    [SerializeField] private float maxFallSpeed = 14f;
-    [SerializeField] private float acceleration = 4f;
-    [SerializeField] private float stopDeceleration = 18f;
+    [SerializeField]
+    private float _baseFallSpeed = 6f;
+
+    [SerializeField]
+    private float _maxFallSpeed = 14f;
+
+    [SerializeField]
+    private float _acceleration = 4f;
+
+    [SerializeField]
+    private float _stopDeceleration = 18f;
 
     [Header("Curved Horizontal Movement")]
-    [SerializeField] private float horizontalSpeed = 5f;
-    [SerializeField] private float horizontalAcceleration = 10f;
-    [SerializeField] private float curveTiltDegrees = 20f;
-    [SerializeField] private float rotationSmoothing = 10f;
+    [SerializeField]
+    private float _horizontalSpeed = 5f;
 
-    private Rigidbody2D rb;
-    private PlayerEnergy energy;
-    private bool hasStarted;
-    private bool canMoveHorizontal;
-    private float currentFallSpeed;
-    private float currentHorizontalSpeed;
-    private float input;
+    [SerializeField]
+    private float _horizontalAcceleration = 10f;
 
-    public float CurrentSpeed => rb == null ? 0f : rb.linearVelocity.magnitude;
-    public bool IsMoving => hasStarted && energy != null && energy.HasEnergy;
+    [SerializeField]
+    private float _curveTiltDegrees = 20f;
 
-    private void Awake()
+    [SerializeField]
+    private float _rotationSmoothing = 10f;
+
+    private bool _isMoving;
+    private bool _canMoveHorizontal;
+    private float _currentFallSpeed;
+    private float _currentHorizontalSpeed;
+    private float _input;
+    private float _launchForce;
+
+    #endregion
+
+    #region Properties
+
+    public float CurrentSpeed => _rigidbody == null ? 0f : _rigidbody.linearVelocity.magnitude;
+
+    public bool IsMoving => _isMoving;
+
+    #endregion
+
+    #region Events
+
+    #endregion
+
+    #region Unity Methods
+
+    private void Start()
     {
-        rb = GetComponent<Rigidbody2D>();
-        energy = GetComponent<PlayerEnergy>();
-        rb.gravityScale = 0f;
-    }
-
-    private void OnEnable()
-    {
-        if (energy != null)
+        if (_rigidbody != null)
         {
-            energy.EnergyDepleted += StopMovement;
-        }
-    }
-
-    private void OnDisable()
-    {
-        if (energy != null)
-        {
-            energy.EnergyDepleted -= StopMovement;
+            _rigidbody.gravityScale = 0f;
         }
     }
 
     private void Update()
     {
-        input = 0f;
+        _input = 0f;
 
-        if (IsMoving && canMoveHorizontal)
+        if (_isMoving && _canMoveHorizontal)
         {
-            input = Input.GetAxisRaw("Horizontal");
+            _input = Input.GetAxisRaw("Horizontal");
         }
     }
 
     private void FixedUpdate()
     {
-        if (!hasStarted)
+        if (_rigidbody == null)
             return;
 
-        if (energy == null || !energy.HasEnergy)
+        if (!_isMoving)
         {
             DecelerateToStop();
             return;
         }
 
-        currentFallSpeed = Mathf.MoveTowards(
-            currentFallSpeed,
-            maxFallSpeed,
-            acceleration * Time.fixedDeltaTime
-        );
-
-        currentHorizontalSpeed = Mathf.MoveTowards(
-            currentHorizontalSpeed,
-            input * horizontalSpeed,
-            horizontalAcceleration * Time.fixedDeltaTime
-        );
-
-        rb.linearVelocity = new Vector2(currentHorizontalSpeed, -currentFallSpeed);
+        MoveDown();
+        MoveHorizontal();
+        ApplyVelocity();
         ApplyCurvedRotation();
     }
 
-    public void StartRun(float launchStrength)
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        hasStarted = true;
-        canMoveHorizontal = true;
-        currentFallSpeed = Mathf.Lerp(baseFallSpeed, maxFallSpeed, Mathf.Clamp01(launchStrength));
-        rb.gravityScale = 0f;
-        rb.linearVelocity = Vector2.down * currentFallSpeed;
+        if (other.CompareTag("Ground"))
+        {
+            _canMoveHorizontal = true;
+        }
+    }
+
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        if (other.CompareTag("Ground"))
+        {
+            _canMoveHorizontal = false;
+        }
+    }
+
+    #endregion
+
+    #region Public Methods
+
+    public void SetLaunchForce(float launchForce)
+    {
+        _launchForce = Mathf.Clamp01(launchForce);
+    }
+
+    public void StartMovement()
+    {
+        _isMoving = true;
+        _canMoveHorizontal = true;
+        _currentFallSpeed = Mathf.Lerp(_baseFallSpeed, _maxFallSpeed, _launchForce);
+
+        if (_rigidbody != null)
+        {
+            _rigidbody.gravityScale = 0f;
+            _rigidbody.linearVelocity = Vector2.down * _currentFallSpeed;
+        }
+    }
+
+    public void StopMovement()
+    {
+        _isMoving = false;
+        _currentFallSpeed = 0f;
+        _currentHorizontalSpeed = 0f;
+
+        if (_rigidbody != null)
+        {
+            _rigidbody.linearVelocity = Vector2.zero;
+        }
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private void MoveDown()
+    {
+        _currentFallSpeed = Mathf.MoveTowards(
+            _currentFallSpeed,
+            _maxFallSpeed,
+            _acceleration * Time.fixedDeltaTime
+        );
+    }
+
+    private void MoveHorizontal()
+    {
+        _currentHorizontalSpeed = Mathf.MoveTowards(
+            _currentHorizontalSpeed,
+            _input * _horizontalSpeed,
+            _horizontalAcceleration * Time.fixedDeltaTime
+        );
+    }
+
+    private void ApplyVelocity()
+    {
+        _rigidbody.linearVelocity = new Vector2(_currentHorizontalSpeed, -_currentFallSpeed);
     }
 
     private void DecelerateToStop()
     {
-        currentFallSpeed = Mathf.MoveTowards(currentFallSpeed, 0f, stopDeceleration * Time.fixedDeltaTime);
-        currentHorizontalSpeed = Mathf.MoveTowards(currentHorizontalSpeed, 0f, stopDeceleration * Time.fixedDeltaTime);
-        rb.linearVelocity = new Vector2(currentHorizontalSpeed, -currentFallSpeed);
+        _currentFallSpeed = Mathf.MoveTowards(_currentFallSpeed, 0f, _stopDeceleration * Time.fixedDeltaTime);
+        _currentHorizontalSpeed = Mathf.MoveTowards(_currentHorizontalSpeed, 0f, _stopDeceleration * Time.fixedDeltaTime);
+        ApplyVelocity();
         ApplyCurvedRotation();
-    }
-
-    private void StopMovement()
-    {
-        currentFallSpeed = 0f;
-        currentHorizontalSpeed = 0f;
-        rb.linearVelocity = Vector2.zero;
     }
 
     private void ApplyCurvedRotation()
     {
-        float targetZ = -Mathf.Sign(currentHorizontalSpeed) * curveTiltDegrees;
+        float targetZ = -Mathf.Sign(_currentHorizontalSpeed) * _curveTiltDegrees;
 
-        if (Mathf.Abs(currentHorizontalSpeed) < 0.05f)
+        if (Mathf.Abs(_currentHorizontalSpeed) < 0.05f)
         {
             targetZ = 0f;
         }
@@ -123,23 +190,9 @@ public class PlayerMovement : MonoBehaviour
         transform.rotation = Quaternion.Lerp(
             transform.rotation,
             targetRotation,
-            rotationSmoothing * Time.fixedDeltaTime
+            _rotationSmoothing * Time.fixedDeltaTime
         );
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Ground"))
-        {
-            canMoveHorizontal = true;
-        }
-    }
-
-    private void OnTriggerExit2D(Collider2D other)
-    {
-        if (other.CompareTag("Ground"))
-        {
-            canMoveHorizontal = false;
-        }
-    }
+    #endregion
 }
