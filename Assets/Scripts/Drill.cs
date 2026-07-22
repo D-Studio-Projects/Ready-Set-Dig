@@ -1,32 +1,68 @@
+using System;
 using UnityEngine;
 
 public class Drill : MonoBehaviour
 {
-    [SerializeField] private Terrain terrain;
-    [SerializeField] private float radius = .4f;
+    #region Fields
 
-    private PlayerEnergy energy;
-    private PlayerMovement movement;
+    [Header("References")]
+    [SerializeField]
+    private RunManager _runManager;
 
-    private void Awake()
-    {
-        energy = GetComponentInParent<PlayerEnergy>();
-        movement = GetComponentInParent<PlayerMovement>();
-    }
+    [SerializeField]
+    private Terrain _terrain;
+
+    [SerializeField]
+    private PlayerEnergy _playerEnergy;
+
+    [Header("Dig")]
+    [SerializeField]
+    private float _radius = .4f;
+
+    #endregion
+
+    #region Properties
+
+    #endregion
+
+    #region Events
+
+    public event Action<int> BlocksDug;
+
+    #endregion
+
+    #region Unity Methods
 
     private void Update()
     {
-        if (terrain == null || energy == null || movement == null)
+        if (!CanDig())
             return;
 
-        if (!movement.IsMoving || !energy.HasEnergy)
+        int dugCells = _terrain.Dig(transform.position, _radius);
+
+        if (dugCells <= 0)
             return;
 
-        int dugCells = terrain.Dig(transform.position, radius);
-
-        if (dugCells > 0)
-        {
-            energy.ConsumeDigging(Time.deltaTime);
-        }
+        BlocksDug?.Invoke(dugCells);
+        _playerEnergy.ConsumeDigging(Time.deltaTime);
     }
+
+    #endregion
+
+    #region Public Methods
+
+    #endregion
+
+    #region Private Methods
+
+    private bool CanDig()
+    {
+        return _runManager != null &&
+               _runManager.IsRunning &&
+               _terrain != null &&
+               _playerEnergy != null &&
+               _playerEnergy.HasEnergy;
+    }
+
+    #endregion
 }
