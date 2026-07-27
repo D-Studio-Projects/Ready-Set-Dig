@@ -350,12 +350,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d44edaaa5e59ec842bf9c639b11fb187, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  terrain: {fileID: 1077523107}
-  targetRenderer: {fileID: 295817054}
-  dirtColor: {r: 0.35, g: 0.22, b: 0.12, a: 1}
-  stoneColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  ironColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  goldColor: {r: 1, g: 0.75, b: 0, a: 1}
+  _terrain: {fileID: 1077523107}
+  _targetRenderer: {fileID: 295817054}
+  _dirtColor: {r: 0.35, g: 0.22, b: 0.12, a: 1}
+  _stoneColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  _ironColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  _goldColor: {r: 1, g: 0.75, b: 0, a: 1}
 --- !u!1 &226178943
 GameObject:
   m_ObjectHideFlags: 0
@@ -998,7 +998,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0bf01e65f4672f4eb3c7e72150e1eda, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerEnergy: {fileID: 0}
+  _runStatistics: {fileID: 0}
 --- !u!1 &887427842
 GameObject:
   m_ObjectHideFlags: 0
