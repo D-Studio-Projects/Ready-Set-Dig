@@ -9,7 +9,7 @@ public class RunResultUI : MonoBehaviour
 
     [Header("References")]
     [SerializeField]
-    private RunManager _runManager;
+    private PlayerProgressService _progressService;
 
     [SerializeField]
     private GameObject _panelRoot;
@@ -28,6 +28,18 @@ public class RunResultUI : MonoBehaviour
 
     [SerializeField]
     private Text _dugBlocksText;
+
+    [SerializeField]
+    private Text _scoreText;
+
+    [SerializeField]
+    private Text _earnedMoneyText;
+
+    [SerializeField]
+    private Text _totalMoneyText;
+
+    [SerializeField]
+    private Text _recordsText;
 
     [SerializeField]
     private Button _retryButton;
@@ -56,8 +68,8 @@ public class RunResultUI : MonoBehaviour
 
     private void OnEnable()
     {
-        if (_runManager != null)
-            _runManager.RunFinished += Show;
+        if (_progressService != null)
+            _progressService.RunSettled += Show;
 
         if (_retryButton != null)
             _retryButton.onClick.AddListener(HandleRetryClicked);
@@ -67,8 +79,8 @@ public class RunResultUI : MonoBehaviour
 
     private void OnDisable()
     {
-        if (_runManager != null)
-            _runManager.RunFinished -= Show;
+        if (_progressService != null)
+            _progressService.RunSettled -= Show;
 
         if (_retryButton != null)
             _retryButton.onClick.RemoveListener(HandleRetryClicked);
@@ -78,13 +90,13 @@ public class RunResultUI : MonoBehaviour
 
     #region Public Methods
 
-    public void Show(RunResult _result)
+    public void Show(ProgressUpdate _update)
     {
         if (_isVisible)
             return;
 
         _isVisible = true;
-        SetTexts(_result);
+        SetTexts(_update);
 
         if (_panelRoot != null)
             _panelRoot.SetActive(true);
@@ -111,29 +123,41 @@ public class RunResultUI : MonoBehaviour
         RetryRequested?.Invoke();
     }
 
-    private void SetTexts(RunResult _result)
+    private void SetTexts(ProgressUpdate _update)
     {
         if (_titleText != null)
             _titleText.text = "GAME OVER";
 
         if (_reasonText != null)
-            _reasonText.text = GetReasonText(_result.EndReason);
+            _reasonText.text = GetReasonText(_update.RunResult.EndReason);
 
         if (_timeText != null)
-            _timeText.text = $"Tempo: {FormatTime(_result.Time)}";
+            _timeText.text = $"Tempo: {FormatTime(_update.RunResult.Time)}";
 
         if (_depthText != null)
         {
             _depthText.text = string.Format(
                 CultureInfo.CurrentCulture,
                 "Profundidade: {0:0.0}{1}",
-                _result.Depth,
+                _update.RunResult.Depth,
                 _depthSuffix
             );
         }
 
         if (_dugBlocksText != null)
-            _dugBlocksText.text = $"Blocos escavados: {_result.DugBlocks:N0}";
+            _dugBlocksText.text = $"Blocos escavados: {_update.RunResult.DugBlocks:N0}";
+
+        if (_scoreText != null)
+            _scoreText.text = $"Score: {_update.Score:N0}";
+
+        if (_earnedMoneyText != null)
+            _earnedMoneyText.text = $"Recompensa: $ {_update.EarnedMoney:N0}";
+
+        if (_totalMoneyText != null)
+            _totalMoneyText.text = $"Dinheiro total: $ {_update.TotalMoney:N0}";
+
+        if (_recordsText != null)
+            _recordsText.text = GetRecordText(_update);
     }
 
     private string FormatTime(float _seconds)
@@ -157,6 +181,19 @@ public class RunResultUI : MonoBehaviour
         }
     }
 
+    private string GetRecordText(ProgressUpdate _update)
+    {
+        if (_update.IsNewBestDepth && _update.IsNewBestScore)
+            return "NOVOS RECORDES: PROFUNDIDADE E SCORE!";
+
+        if (_update.IsNewBestDepth)
+            return "NOVO RECORDE DE PROFUNDIDADE!";
+
+        if (_update.IsNewBestScore)
+            return "NOVO RECORDE DE SCORE!";
+
+        return string.Empty;
+    }
+
     #endregion
 }
-

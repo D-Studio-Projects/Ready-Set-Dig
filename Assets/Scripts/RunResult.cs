@@ -1,4 +1,4 @@
-public enum RunEndReason
+﻿public enum RunEndReason
 {
     EnergyDepleted,
     ReachedCore,
@@ -13,6 +13,7 @@ public readonly struct RunResult
     private readonly float _depth;
     private readonly int _dugBlocks;
     private readonly RunEndReason _endReason;
+    private readonly int _runId;
 
     #endregion
 
@@ -25,6 +26,8 @@ public readonly struct RunResult
     public int DugBlocks => _dugBlocks;
 
     public RunEndReason EndReason => _endReason;
+
+    public int RunId => _runId;
 
     #endregion
 
@@ -39,11 +42,13 @@ public readonly struct RunResult
     #region Public Methods
 
     public RunResult(
+        int _runId,
         float _time,
         float _depth,
         int _dugBlocks,
         RunEndReason _endReason)
     {
+        this._runId = _runId;
         this._time = _time;
         this._depth = _depth;
         this._dugBlocks = _dugBlocks;
@@ -56,3 +61,6 @@ public readonly struct RunResult
 
     #endregion
 }
+
+
+

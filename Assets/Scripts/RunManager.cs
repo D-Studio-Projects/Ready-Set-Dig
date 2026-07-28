@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 public enum RunState
@@ -16,6 +16,8 @@ public class RunManager : MonoBehaviour
     [SerializeField]
     private RunStatistics _runStatistics;
 
+    private int _currentRunId;
+
     #endregion
 
     #region Properties
@@ -25,6 +27,8 @@ public class RunManager : MonoBehaviour
     public bool IsRunning => CurrentState == RunState.Running;
 
     public bool IsFinished => CurrentState == RunState.Finished;
+
+    public int CurrentRunId => _currentRunId;
 
     #endregion
 
@@ -55,6 +59,8 @@ public class RunManager : MonoBehaviour
         if (CurrentState != RunState.Launching)
             return;
 
+        _currentRunId++;
+
         ChangeState(RunState.Running);
         RunStarted?.Invoke();
     }
@@ -70,8 +76,8 @@ public class RunManager : MonoBehaviour
             return;
 
         RunResult result = _runStatistics == null
-            ? new RunResult(0f, 0f, 0, _reason)
-            : _runStatistics.CreateResult(_reason);
+            ? new RunResult(_currentRunId, 0f, 0f, 0, _reason)
+            : _runStatistics.CreateResult(_currentRunId, _reason);
 
         ChangeState(RunState.Finished);
         RunFinished?.Invoke(result);
@@ -107,3 +113,4 @@ public class RunManager : MonoBehaviour
 
     #endregion
 }
+
