@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [DefaultExecutionOrder(-100)]
 public class PlayerEquipmentController : MonoBehaviour
@@ -56,15 +56,25 @@ public class PlayerEquipmentController : MonoBehaviour
         if (_drill == null)
             return;
 
-        EquipmentItemDefinition item = ResolveEquipment(EquipmentType.Drill);
-
-        if (item == null || item.DrillToolData == null)
+        if (TryResolveEquipment(
+                EquipmentType.Drill,
+                out EquipmentItemDefinition item,
+                out int level) &&
+            item.TryGetDrillStats(level, out DrillStats stats))
         {
-            _drill.ResetEquipment();
+            _drill.ApplyEquipment(stats);
             return;
         }
 
-        _drill.ApplyEquipment(item.DrillToolData);
+        if (_equipmentCatalog != null &&
+            _equipmentCatalog.TryGetDefault(EquipmentType.Drill, out EquipmentItemDefinition defaultItem) &&
+            defaultItem.TryGetDrillStats(0, out DrillStats defaultStats))
+        {
+            _drill.ApplyEquipment(defaultStats);
+            return;
+        }
+
+        _drill.ResetEquipment();
     }
 
     private void ApplyLauncherEquipment()
@@ -72,29 +82,48 @@ public class PlayerEquipmentController : MonoBehaviour
         if (_launchController == null)
             return;
 
-        EquipmentItemDefinition item = ResolveEquipment(EquipmentType.Launcher);
-
-        if (item == null)
+        if (TryResolveEquipment(
+                EquipmentType.Launcher,
+                out EquipmentItemDefinition item,
+                out int level) &&
+            item.TryGetLauncherForceMultiplier(level, out float multiplier))
         {
-            _launchController.ResetEquipment();
+            _launchController.ApplyEquipment(multiplier);
             return;
         }
 
-        _launchController.ApplyEquipment(item.LaunchForceMultiplier);
+        if (_equipmentCatalog != null &&
+            _equipmentCatalog.TryGetDefault(EquipmentType.Launcher, out EquipmentItemDefinition defaultItem) &&
+            defaultItem.TryGetLauncherForceMultiplier(0, out float defaultMultiplier))
+        {
+            _launchController.ApplyEquipment(defaultMultiplier);
+            return;
+        }
+
+        _launchController.ResetEquipment();
     }
 
-    private EquipmentItemDefinition ResolveEquipment(EquipmentType _type)
+    private bool TryResolveEquipment(
+        EquipmentType _type,
+        out EquipmentItemDefinition _item,
+        out int _level)
     {
+        _item = null;
+        _level = 0;
+
         if (_progressService != null &&
             _progressService.TryGetEquippedEquipment(_type, out EquipmentItemDefinition equippedItem))
         {
-            return equippedItem;
+            _item = equippedItem;
+            _level = _progressService.GetEquipmentLevel(equippedItem.Id);
+            return true;
         }
 
         if (_equipmentCatalog != null &&
             _equipmentCatalog.TryGetDefault(_type, out EquipmentItemDefinition defaultItem))
         {
-            return defaultItem;
+            _item = defaultItem;
+            return true;
         }
 
         if (!_hasLoggedCatalogError)
@@ -106,7 +135,7 @@ public class PlayerEquipmentController : MonoBehaviour
             );
         }
 
-        return null;
+        return false;
     }
 
     #endregion

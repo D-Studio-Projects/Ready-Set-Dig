@@ -23,6 +23,8 @@ public class Drill : MonoBehaviour, ITool
     private float _baseRadius = .4f;
 
     private ToolData _activeToolData;
+    private DrillStats _activeDrillStats;
+    private bool _hasActiveStats;
     private float _digTimer;
 
     #endregion
@@ -69,7 +71,7 @@ public class Drill : MonoBehaviour, ITool
 
         DigCompleted?.Invoke(result);
         _playerEnergy.ConsumeToolEnergy(
-            Data.EnergyConsumption,
+            _activeDrillStats.EnergyConsumption,
             elapsedSinceDig
         );
     }
@@ -81,12 +83,30 @@ public class Drill : MonoBehaviour, ITool
     public void ApplyEquipment(ToolData _equipmentData)
     {
         _activeToolData = _equipmentData == null ? _toolData : _equipmentData;
+        _activeDrillStats = DrillStats.FromToolData(_activeToolData);
+        _hasActiveStats = _activeDrillStats.IsValid();
+        _digTimer = 0f;
+    }
+
+    public void ApplyEquipment(DrillStats _stats)
+    {
+        if (!_stats.IsValid())
+        {
+            ResetEquipment();
+            return;
+        }
+
+        _activeToolData = _toolData;
+        _activeDrillStats = _stats;
+        _hasActiveStats = true;
         _digTimer = 0f;
     }
 
     public void ResetEquipment()
     {
         _activeToolData = _toolData;
+        _activeDrillStats = DrillStats.FromToolData(_toolData);
+        _hasActiveStats = _activeDrillStats.IsValid();
         _digTimer = 0f;
     }
 
@@ -97,7 +117,8 @@ public class Drill : MonoBehaviour, ITool
                _terrain != null &&
                _playerEnergy != null &&
                _playerEnergy.HasEnergy &&
-               Data != null;
+               _hasActiveStats &&
+               _activeDrillStats.IsValid();
     }
 
     public int Use()
@@ -121,12 +142,12 @@ public class Drill : MonoBehaviour, ITool
 
     private float GetDigRadius()
     {
-        return _baseRadius * Mathf.Max(0f, Data.DigDamage);
+        return _baseRadius * Mathf.Max(0f, _activeDrillStats.DigDamage);
     }
 
     private float GetDigInterval()
     {
-        float digSpeed = Mathf.Max(.01f, Data.DigSpeed);
+        float digSpeed = Mathf.Max(.01f, _activeDrillStats.DigSpeed);
         return 1f / digSpeed;
     }
 
