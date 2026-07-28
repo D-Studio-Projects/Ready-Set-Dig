@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TerrainDepthProfile
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5a6c7d8e9f04123948576a1b2c3d4e5, type: 3}
+  m_EditorClassIdentifier: 
+  _layers:
+  - _name: Stone
+    _terrainType: 2
+    _startDepth: 24
+    _baseChance: 0.35
+    _chancePerDepth: 0.004
+    _noiseScale: 0.04
+    _noiseOffset: 11
+  - _name: Iron
+    _terrainType: 3
+    _startDepth: 80
+    _baseChance: 0.12
+    _chancePerDepth: 0.0025
+    _noiseScale: 0.035
+    _noiseOffset: 37
+  - _name: Gold
+    _terrainType: 4
+    _startDepth: 160
+    _baseChance: 0.06
+    _chancePerDepth: 0.0015
+    _noiseScale: 0.03
+    _noiseOffset: 71

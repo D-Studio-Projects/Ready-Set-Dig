@@ -23,6 +23,9 @@ public class RunEvents : MonoBehaviour
     [SerializeField]
     private RunStatistics _runStatistics;
 
+    [SerializeField]
+    private TerrainChunkManager _terrain;
+
     #endregion
 
     #region Properties
@@ -56,9 +59,7 @@ public class RunEvents : MonoBehaviour
     private void SubscribeEvents()
     {
         if (_launchController != null)
-        {
             _launchController.LaunchStarted += HandleLaunchStarted;
-        }
 
         if (_runManager != null && _playerMovement != null)
         {
@@ -66,23 +67,23 @@ public class RunEvents : MonoBehaviour
             _runManager.RunFinished += _playerMovement.StopMovement;
         }
 
-        if (_playerEnergy != null && _runManager != null)
-        {
-            _playerEnergy.EnergyDepleted += _runManager.FinishRun;
-        }
+        if (_runManager != null && _terrain != null)
+            _runManager.RunStarted += _terrain.ResetTerrain;
 
-        if (_drill != null && _runStatistics != null)
-        {
-            _drill.BlocksDug += _runStatistics.AddDiggedBlocks;
-        }
+        if (_playerEnergy != null && _runManager != null)
+            _playerEnergy.EnergyDepleted += _runManager.FinishRun;
+
+        if (_drill != null)
+            _drill.DigCompleted += HandleDigCompleted;
+
+        if (_playerMovement != null && _runStatistics != null)
+            _playerMovement.DistanceMovedDown += _runStatistics.AddDistance;
     }
 
     private void UnsubscribeEvents()
     {
         if (_launchController != null)
-        {
             _launchController.LaunchStarted -= HandleLaunchStarted;
-        }
 
         if (_runManager != null && _playerMovement != null)
         {
@@ -90,28 +91,32 @@ public class RunEvents : MonoBehaviour
             _runManager.RunFinished -= _playerMovement.StopMovement;
         }
 
-        if (_playerEnergy != null && _runManager != null)
-        {
-            _playerEnergy.EnergyDepleted -= _runManager.FinishRun;
-        }
+        if (_runManager != null && _terrain != null)
+            _runManager.RunStarted -= _terrain.ResetTerrain;
 
-        if (_drill != null && _runStatistics != null)
-        {
-            _drill.BlocksDug -= _runStatistics.AddDiggedBlocks;
-        }
+        if (_playerEnergy != null && _runManager != null)
+            _playerEnergy.EnergyDepleted -= _runManager.FinishRun;
+
+        if (_drill != null)
+            _drill.DigCompleted -= HandleDigCompleted;
+
+        if (_playerMovement != null && _runStatistics != null)
+            _playerMovement.DistanceMovedDown -= _runStatistics.AddDistance;
     }
 
-    private void HandleLaunchStarted(float launchForce)
+    private void HandleLaunchStarted(float _launchForce)
     {
         if (_playerMovement != null)
-        {
-            _playerMovement.SetLaunchForce(launchForce);
-        }
+            _playerMovement.SetLaunchForce(_launchForce);
 
         if (_runManager != null)
-        {
             _runManager.StartRun();
-        }
+    }
+
+    private void HandleDigCompleted(DigResult _result)
+    {
+        if (_runStatistics != null)
+            _runStatistics.AddDiggedBlocks(_result.TotalCells);
     }
 
     #endregion

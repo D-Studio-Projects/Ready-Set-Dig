@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
@@ -40,6 +41,7 @@ public class PlayerMovement : MonoBehaviour
     private float _currentHorizontalSpeed;
     private float _input;
     private float _launchForce;
+    private float _lastTrackedY;
 
     #endregion
 
@@ -53,12 +55,16 @@ public class PlayerMovement : MonoBehaviour
 
     #region Events
 
+    public event Action<float> DistanceMovedDown;
+
     #endregion
 
     #region Unity Methods
 
     private void Start()
     {
+        _lastTrackedY = transform.position.y;
+
         if (_rigidbody != null)
         {
             _rigidbody.gravityScale = 0f;
@@ -73,6 +79,8 @@ public class PlayerMovement : MonoBehaviour
         {
             _input = Input.GetAxisRaw("Horizontal");
         }
+
+        TrackDownwardDistance();
     }
 
     private void FixedUpdate()
@@ -92,17 +100,17 @@ public class PlayerMovement : MonoBehaviour
         ApplyCurvedRotation();
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    private void OnTriggerEnter2D(Collider2D _other)
     {
-        if (other.CompareTag("Ground"))
+        if (_other.CompareTag("Ground"))
         {
             _canMoveHorizontal = true;
         }
     }
 
-    private void OnTriggerExit2D(Collider2D other)
+    private void OnTriggerExit2D(Collider2D _other)
     {
-        if (other.CompareTag("Ground"))
+        if (_other.CompareTag("Ground"))
         {
             _canMoveHorizontal = false;
         }
@@ -112,15 +120,16 @@ public class PlayerMovement : MonoBehaviour
 
     #region Public Methods
 
-    public void SetLaunchForce(float launchForce)
+    public void SetLaunchForce(float _launchForceValue)
     {
-        _launchForce = Mathf.Clamp01(launchForce);
+        _launchForce = Mathf.Clamp01(_launchForceValue);
     }
 
     public void StartMovement()
     {
         _isMoving = true;
         _canMoveHorizontal = true;
+        _lastTrackedY = transform.position.y;
         _currentFallSpeed = Mathf.Lerp(_baseFallSpeed, _maxFallSpeed, _launchForce);
 
         if (_rigidbody != null)
@@ -135,6 +144,7 @@ public class PlayerMovement : MonoBehaviour
         _isMoving = false;
         _currentFallSpeed = 0f;
         _currentHorizontalSpeed = 0f;
+        _lastTrackedY = transform.position.y;
 
         if (_rigidbody != null)
         {
@@ -171,8 +181,16 @@ public class PlayerMovement : MonoBehaviour
 
     private void DecelerateToStop()
     {
-        _currentFallSpeed = Mathf.MoveTowards(_currentFallSpeed, 0f, _stopDeceleration * Time.fixedDeltaTime);
-        _currentHorizontalSpeed = Mathf.MoveTowards(_currentHorizontalSpeed, 0f, _stopDeceleration * Time.fixedDeltaTime);
+        _currentFallSpeed = Mathf.MoveTowards(
+            _currentFallSpeed,
+            0f,
+            _stopDeceleration * Time.fixedDeltaTime
+        );
+        _currentHorizontalSpeed = Mathf.MoveTowards(
+            _currentHorizontalSpeed,
+            0f,
+            _stopDeceleration * Time.fixedDeltaTime
+        );
         ApplyVelocity();
         ApplyCurvedRotation();
     }
@@ -181,7 +199,7 @@ public class PlayerMovement : MonoBehaviour
     {
         float targetZ = -Mathf.Sign(_currentHorizontalSpeed) * _curveTiltDegrees;
 
-        if (Mathf.Abs(_currentHorizontalSpeed) < 0.05f)
+        if (Mathf.Abs(_currentHorizontalSpeed) < .05f)
         {
             targetZ = 0f;
         }
@@ -192,6 +210,23 @@ public class PlayerMovement : MonoBehaviour
             targetRotation,
             _rotationSmoothing * Time.fixedDeltaTime
         );
+    }
+
+    private void TrackDownwardDistance()
+    {
+        float currentY = transform.position.y;
+
+        if (_isMoving)
+        {
+            float distanceDown = Mathf.Max(0f, _lastTrackedY - currentY);
+
+            if (distanceDown > 0f)
+            {
+                DistanceMovedDown?.Invoke(distanceDown);
+            }
+        }
+
+        _lastTrackedY = currentY;
     }
 
     #endregion

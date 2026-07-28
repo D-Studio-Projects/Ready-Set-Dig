@@ -10,7 +10,7 @@ public class Drill : MonoBehaviour, ITool
     private RunManager _runManager;
 
     [SerializeField]
-    private Terrain _terrain;
+    private TerrainChunkManager _terrain;
 
     [SerializeField]
     private PlayerEnergy _playerEnergy;
@@ -34,7 +34,7 @@ public class Drill : MonoBehaviour, ITool
 
     #region Events
 
-    public event Action<int> BlocksDug;
+    public event Action<DigResult> DigCompleted;
 
     #endregion
 
@@ -43,15 +43,29 @@ public class Drill : MonoBehaviour, ITool
     private void Update()
     {
         if (!CanUse())
+        {
+            _digTimer = 0f;
             return;
+        }
 
         _digTimer += Time.deltaTime;
+        float digInterval = GetDigInterval();
 
-        if (_digTimer < GetDigInterval())
+        if (_digTimer < digInterval)
             return;
 
+        float elapsedSinceDig = _digTimer;
         _digTimer = 0f;
-        Use();
+        DigResult result = PerformDig();
+
+        if (!result.HasChanges)
+            return;
+
+        _playerEnergy.ConsumeToolEnergy(
+            _toolData.EnergyConsumption,
+            elapsedSinceDig
+        );
+        DigCompleted?.Invoke(result);
     }
 
     #endregion
@@ -70,20 +84,22 @@ public class Drill : MonoBehaviour, ITool
 
     public int Use()
     {
-        int dugCells = _terrain.Dig(transform.position, GetDigRadius());
+        DigResult result = PerformDig();
 
-        if (dugCells <= 0)
-            return 0;
+        if (result.HasChanges)
+            DigCompleted?.Invoke(result);
 
-        BlocksDug?.Invoke(dugCells);
-        _playerEnergy.ConsumeToolEnergy(_toolData.EnergyConsumption, Time.deltaTime);
-
-        return dugCells;
+        return result.TotalCells;
     }
 
     #endregion
 
     #region Private Methods
+
+    private DigResult PerformDig()
+    {
+        return _terrain.Dig(transform.position, GetDigRadius());
+    }
 
     private float GetDigRadius()
     {
@@ -92,7 +108,7 @@ public class Drill : MonoBehaviour, ITool
 
     private float GetDigInterval()
     {
-        float digSpeed = Mathf.Max(0.01f, _toolData.DigSpeed);
+        float digSpeed = Mathf.Max(.01f, _toolData.DigSpeed);
         return 1f / digSpeed;
     }
 
