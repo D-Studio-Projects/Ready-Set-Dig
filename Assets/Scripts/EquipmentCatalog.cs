@@ -97,10 +97,18 @@ public class EquipmentCatalog : ScriptableObject
             if (!item.HasValidConfiguration())
             {
                 Debug.LogError(
-                    $"Equipment item '{item.Id}' has an invalid configuration and will be unavailable.",
+                    $"Equipment item '{item.Id}' has an invalid base configuration and will be unavailable.",
                     item
                 );
                 continue;
+            }
+
+            if (!item.HasValidUpgradeConfiguration())
+            {
+                Debug.LogError(
+                    $"Equipment item '{item.Id}' has an invalid upgrade configuration. Its level 0 remains available.",
+                    item
+                );
             }
 
             if (!item.IsDefault)
