@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class LaunchController : MonoBehaviour
 {
@@ -11,32 +11,32 @@ public class LaunchController : MonoBehaviour
     private RunManager _runManager;
 
     [SerializeField]
-    private PlayerMovement _playerMovement;
+    private LauncherData _fallbackLauncherData;
 
     [SerializeField]
-    private Slider _chargeBar;
+    private MonoBehaviour[] _minigameBehaviors;
 
-    [Header("Charge")]
-    [SerializeField]
-    private float _chargeSpeed = 2f;
+    private readonly Dictionary<LauncherBehaviorId, ILaunchMinigame> _minigames =
+        new Dictionary<LauncherBehaviorId, ILaunchMinigame>();
 
-    [SerializeField]
-    private bool _hideChargeBarOnLaunch = true;
-
-    private float _charge;
-    private float _chargeDirection = 1f;
-    private float _configuredLaunchForceMultiplier = 1f;
+    private LauncherData _activeLauncherData;
+    private ILaunchMinigame _activeMinigame;
+    private int _activeLauncherLevel;
     private bool _hasLaunched;
+    private bool _isInitialized;
 
     #endregion
 
     #region Properties
 
-    public float CurrentCharge => _charge;
+    public float CurrentCharge => _activeMinigame == null ? 0f : _activeMinigame.CurrentResult;
 
     public bool HasLaunched => _hasLaunched;
 
-    public float ConfiguredLaunchForceMultiplier => _configuredLaunchForceMultiplier;
+    public float ConfiguredLaunchForceMultiplier =>
+        _activeLauncherData == null
+            ? 1f
+            : _activeLauncherData.GetForceMultiplier(_activeLauncherLevel);
 
     #endregion
 
@@ -48,13 +48,139 @@ public class LaunchController : MonoBehaviour
 
     #region Unity Methods
 
+    private void Awake()
+    {
+        RegisterMinigames();
+        _isInitialized = true;
+    }
+
     private void Start()
     {
-        if (_runManager != null)
-            _runManager.StartLaunch();
+        ResetLaunch();
+
+        if (_runManager == null)
+        {
+            Debug.LogError("LaunchController needs a RunManager reference.", this);
+            return;
+        }
+
+        _runManager.StartLaunch();
     }
 
     private void Update()
+    {
+        if (_hasLaunched ||
+            _runManager == null ||
+            _runManager.CurrentState != RunState.Launching ||
+            _activeMinigame == null)
+        {
+            return;
+        }
+
+        _activeMinigame.Tick(UnityEngine.Time.deltaTime);
+
+        if (_activeMinigame.TryComplete(out float minigameResult))
+            CompleteLaunch(minigameResult);
+    }
+
+    #endregion
+
+    #region Public Methods
+
+    public void ApplyEquipment(LauncherData _launcherData, int _level)
+    {
+        if (_launcherData == null || !_launcherData.HasValidConfiguration())
+        {
+            ResetEquipment();
+            return;
+        }
+
+        _activeLauncherData = _launcherData;
+        _activeLauncherLevel = Mathf.Max(0, _level);
+
+        if (_isInitialized)
+            PrepareActiveMinigame();
+    }
+
+    public void ResetEquipment()
+    {
+        _activeLauncherData =
+            _fallbackLauncherData != null && _fallbackLauncherData.HasValidConfiguration()
+                ? _fallbackLauncherData
+                : null;
+        _activeLauncherLevel = 0;
+
+        if (_isInitialized)
+            PrepareActiveMinigame();
+    }
+
+    public void ResetLaunch()
+    {
+        _hasLaunched = false;
+
+        if (_activeLauncherData == null || !_activeLauncherData.HasValidConfiguration())
+            ResetEquipment();
+        else
+            PrepareActiveMinigame();
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private void RegisterMinigames()
+    {
+        _minigames.Clear();
+
+        if (_minigameBehaviors == null)
+            return;
+
+        foreach (MonoBehaviour behavior in _minigameBehaviors)
+        {
+            if (!(behavior is ILaunchMinigame minigame))
+            {
+                if (behavior != null)
+                    Debug.LogError($"{behavior.name} does not implement ILaunchMinigame.", behavior);
+
+                continue;
+            }
+
+            if (_minigames.ContainsKey(minigame.BehaviorId))
+            {
+                Debug.LogError(
+                    $"LaunchController has more than one minigame for {minigame.BehaviorId}.",
+                    this
+                );
+                continue;
+            }
+
+            _minigames.Add(minigame.BehaviorId, minigame);
+        }
+    }
+
+    private void PrepareActiveMinigame()
+    {
+        _activeMinigame = null;
+
+        if (_activeLauncherData == null)
+            return;
+
+        if (!_minigames.TryGetValue(
+                _activeLauncherData.BehaviorId,
+                out ILaunchMinigame minigame))
+        {
+            Debug.LogError(
+                $"No launch minigame is configured for {_activeLauncherData.BehaviorId}.",
+                this
+            );
+            return;
+        }
+
+        _activeMinigame = minigame;
+        _activeMinigame.ResetMinigame();
+    }
+
+    private void CompleteLaunch(float _minigameResult)
     {
         if (_hasLaunched ||
             _runManager == null ||
@@ -63,110 +189,23 @@ public class LaunchController : MonoBehaviour
             return;
         }
 
-        UpdateChargeBar();
-        HandleLaunchInput();
-    }
-
-    #endregion
-
-    #region Public Methods
-
-    public void ApplyEquipment(float _launchForceMultiplier)
-    {
-        if (float.IsNaN(_launchForceMultiplier) || float.IsInfinity(_launchForceMultiplier))
-            _launchForceMultiplier = 1f;
-
-        _configuredLaunchForceMultiplier = Mathf.Max(.01f, _launchForceMultiplier);
-    }
-
-    public void ResetEquipment()
-    {
-        _configuredLaunchForceMultiplier = 1f;
-    }
-
-    public void ResetLaunch()
-    {
-        _hasLaunched = false;
-        _charge = 0f;
-        _chargeDirection = 1f;
-
-        if (_chargeBar != null)
-        {
-            _chargeBar.value = _charge;
-
-            if (_hideChargeBarOnLaunch)
-                _chargeBar.gameObject.SetActive(true);
-        }
-    }
-
-    #endregion
-
-    #region Private Methods
-
-    private void UpdateChargeBar()
-    {
-        float chargeSpeed = Mathf.Max(.01f, _chargeSpeed);
-        _charge += _chargeDirection * chargeSpeed * UnityEngine.Time.deltaTime;
-
-        if (_charge >= 1f)
-        {
-            _charge = 1f;
-            _chargeDirection = -1f;
-        }
-        else if (_charge <= 0f)
-        {
-            _charge = 0f;
-            _chargeDirection = 1f;
-        }
-
-        if (_chargeBar != null)
-            _chargeBar.value = _charge;
-    }
-
-    private void HandleLaunchInput()
-    {
-        if (!Input.GetKeyDown(KeyCode.Space))
-            return;
-
-        StartLaunch();
-    }
-
-    private void StartLaunch()
-    {
-        float launchForce = Mathf.Clamp01(_charge * _configuredLaunchForceMultiplier);
-
-        if (_playerMovement == null)
-            _playerMovement = FindFirstObjectByType<PlayerMovement>();
-
-        if (_playerMovement != null)
-            _playerMovement.SetLaunchForce(launchForce);
+        _hasLaunched = true;
+        float launchForce = LauncherForceCalculator.Calculate(
+            _minigameResult,
+            _activeLauncherData,
+            _activeLauncherLevel
+        );
 
         LaunchStarted?.Invoke(launchForce);
+        _runManager.StartRun();
 
-        if (_runManager != null && _runManager.CurrentState == RunState.Launching)
-            _runManager.StartRun();
-
-        if (_runManager != null &&
-            _runManager.IsRunning &&
-            _playerMovement != null &&
-            !_playerMovement.IsMoving)
-        {
-            _playerMovement.StartMovement();
-        }
-
-        if (_runManager == null || !_runManager.IsRunning)
+        if (!_runManager.IsRunning)
         {
             Debug.LogError(
                 "LaunchController could not start the run. Check its RunManager reference.",
                 this
             );
-            return;
         }
-
-        _hasLaunched = true;
-
-        if (_hideChargeBarOnLaunch && _chargeBar != null)
-            _chargeBar.gameObject.SetActive(false);
     }
 
     #endregion

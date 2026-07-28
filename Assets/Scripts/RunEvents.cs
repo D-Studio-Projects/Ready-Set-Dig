@@ -105,9 +105,6 @@ public class RunEvents : MonoBehaviour
     {
         if (_playerMovement != null)
             _playerMovement.SetLaunchForce(_launchForce);
-
-        if (_runManager != null)
-            _runManager.StartRun();
     }
 
     private void HandleEnergyDepleted()
