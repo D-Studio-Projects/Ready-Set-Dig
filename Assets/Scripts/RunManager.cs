@@ -13,10 +13,18 @@ public class RunManager : MonoBehaviour
 {
     #region Fields
 
+    [Header("References")]
     [SerializeField]
     private RunStatistics _runStatistics;
 
+    [SerializeField]
+    private PlayerEnergy _playerEnergy;
+
+    [SerializeField]
+    private PlayerMovement _playerMovement;
+
     private int _currentRunId;
+    private PlayerEnergy _subscribedPlayerEnergy;
 
     #endregion
 
@@ -42,6 +50,21 @@ public class RunManager : MonoBehaviour
 
     #region Unity Methods
 
+    private void Awake()
+    {
+        ResolveReferences();
+    }
+
+    private void OnEnable()
+    {
+        BindEnergyDepletion();
+    }
+
+    private void OnDisable()
+    {
+        UnbindEnergyDepletion();
+    }
+
     #endregion
 
     #region Public Methods
@@ -59,6 +82,7 @@ public class RunManager : MonoBehaviour
         if (CurrentState != RunState.Launching)
             return;
 
+        BindEnergyDepletion();
         _currentRunId++;
 
         ChangeState(RunState.Running);
@@ -80,6 +104,10 @@ public class RunManager : MonoBehaviour
             : _runStatistics.CreateResult(_currentRunId, _reason);
 
         ChangeState(RunState.Finished);
+
+        if (_playerMovement != null)
+            _playerMovement.StopMovement();
+
         RunFinished?.Invoke(result);
     }
 
@@ -109,6 +137,42 @@ public class RunManager : MonoBehaviour
     {
         if (_runStatistics != null)
             _runStatistics.Reset();
+    }
+
+    private void ResolveReferences()
+    {
+        if (_playerEnergy == null)
+            _playerEnergy = FindFirstObjectByType<PlayerEnergy>();
+
+        if (_playerMovement == null)
+            _playerMovement = FindFirstObjectByType<PlayerMovement>();
+    }
+
+    private void BindEnergyDepletion()
+    {
+        ResolveReferences();
+
+        if (_subscribedPlayerEnergy == _playerEnergy)
+            return;
+
+        UnbindEnergyDepletion();
+        _subscribedPlayerEnergy = _playerEnergy;
+
+        if (_subscribedPlayerEnergy != null)
+            _subscribedPlayerEnergy.EnergyDepleted += HandleEnergyDepleted;
+    }
+
+    private void UnbindEnergyDepletion()
+    {
+        if (_subscribedPlayerEnergy != null)
+            _subscribedPlayerEnergy.EnergyDepleted -= HandleEnergyDepleted;
+
+        _subscribedPlayerEnergy = null;
+    }
+
+    private void HandleEnergyDepleted()
+    {
+        FinishRun(RunEndReason.EnergyDepleted);
     }
 
     #endregion

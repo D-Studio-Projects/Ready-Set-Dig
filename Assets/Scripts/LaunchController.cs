@@ -11,6 +11,9 @@ public class LaunchController : MonoBehaviour
     private RunManager _runManager;
 
     [SerializeField]
+    private PlayerMovement _playerMovement;
+
+    [SerializeField]
     private Slider _chargeBar;
 
     [Header("Charge")]
@@ -130,9 +133,37 @@ public class LaunchController : MonoBehaviour
 
     private void StartLaunch()
     {
-        _hasLaunched = true;
         float launchForce = Mathf.Clamp01(_charge * _configuredLaunchForceMultiplier);
+
+        if (_playerMovement == null)
+            _playerMovement = FindFirstObjectByType<PlayerMovement>();
+
+        if (_playerMovement != null)
+            _playerMovement.SetLaunchForce(launchForce);
+
         LaunchStarted?.Invoke(launchForce);
+
+        if (_runManager != null && _runManager.CurrentState == RunState.Launching)
+            _runManager.StartRun();
+
+        if (_runManager != null &&
+            _runManager.IsRunning &&
+            _playerMovement != null &&
+            !_playerMovement.IsMoving)
+        {
+            _playerMovement.StartMovement();
+        }
+
+        if (_runManager == null || !_runManager.IsRunning)
+        {
+            Debug.LogError(
+                "LaunchController could not start the run. Check its RunManager reference.",
+                this
+            );
+            return;
+        }
+
+        _hasLaunched = true;
 
         if (_hideChargeBarOnLaunch && _chargeBar != null)
             _chargeBar.gameObject.SetActive(false);

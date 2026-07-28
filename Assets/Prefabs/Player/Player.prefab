@@ -154,6 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _runManager: {fileID: 0}
+  _playerMovement: {fileID: 0}
   _chargeBar: {fileID: 0}
   _chargeSpeed: 2
   _hideChargeBarOnLaunch: 1
@@ -297,8 +298,10 @@ MonoBehaviour:
   _runManager: {fileID: 0}
   _terrain: {fileID: 0}
   _playerEnergy: {fileID: 6124326674597133376}
+  _playerCollider: {fileID: 0}
   _toolData: {fileID: 11400000, guid: 23c42c27a9454c31b6be8e2b2b98db1e, type: 2}
   _baseRadius: 0.1
+  _tunnelPadding: 0.1
 --- !u!58 &3537321846034889236
 CircleCollider2D:
   m_ObjectHideFlags: 0
