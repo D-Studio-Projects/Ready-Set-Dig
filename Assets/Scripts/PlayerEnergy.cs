@@ -83,10 +83,19 @@ public class PlayerEnergy : MonoBehaviour
 
     public bool ConsumeDigging(float deltaTime)
     {
+        return ConsumeToolEnergy(_digDrainPerSecond, deltaTime);
+    }
+
+    public bool ConsumeToolEnergy(float energyConsumption, float deltaTime)
+    {
         if (!HasEnergy)
             return false;
 
-        Consume(_digDrainPerSecond * GetCurrentObstacleMultiplier() * deltaTime);
+        if (energyConsumption <= 0f || deltaTime <= 0f)
+            return true;
+
+        float obstacleMultiplier = GetCurrentObstacleMultiplier();
+        Consume(energyConsumption * obstacleMultiplier * deltaTime);
         return HasEnergy;
     }
 

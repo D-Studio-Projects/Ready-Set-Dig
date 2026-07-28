@@ -76,7 +76,7 @@ public class Drill : MonoBehaviour, ITool
             return 0;
 
         BlocksDug?.Invoke(dugCells);
-        //_playerEnergy.ConsumeToolEnergy(_toolData.EnergyConsumption, Time.deltaTime);
+        _playerEnergy.ConsumeToolEnergy(_toolData.EnergyConsumption, Time.deltaTime);
 
         return dugCells;
     }

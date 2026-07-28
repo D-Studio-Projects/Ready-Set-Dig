@@ -6,7 +6,7 @@ public interface ITool
 
     #endregion
 
-    #region Methods
+    #region Public Methods
 
     bool CanUse();
 

@@ -18,15 +18,9 @@ public class PlayerHud : MonoBehaviour
     [SerializeField]
     private Text _speedText;
 
-    [Header("Fallback")]
+    [Header("Display")]
     [SerializeField]
     private string _speedSuffix = " m/s";
-
-    [SerializeField]
-    private bool _drawFallbackHud = true;
-
-    private const float FallbackWidth = 220f;
-    private const float FallbackHeight = 22f;
 
     #endregion
 
@@ -72,15 +66,6 @@ public class PlayerHud : MonoBehaviour
         }
     }
 
-    private void OnGUI()
-    {
-        if (!_drawFallbackHud || _playerEnergy == null || _playerMovement == null)
-            return;
-
-        DrawFallbackEnergyBar();
-        DrawFallbackSpeedText();
-    }
-
     #endregion
 
     #region Public Methods
@@ -96,27 +81,6 @@ public class PlayerHud : MonoBehaviour
 
         _energyBar.maxValue = maxEnergy;
         _energyBar.value = currentEnergy;
-    }
-
-    private void DrawFallbackEnergyBar()
-    {
-        if (_energyBar != null)
-            return;
-
-        Rect background = new Rect(20f, 20f, FallbackWidth, FallbackHeight);
-        Rect fill = new Rect(20f, 20f, FallbackWidth * _playerEnergy.Normalized, FallbackHeight);
-
-        GUI.Box(background, string.Empty);
-        GUI.Box(fill, string.Empty);
-        GUI.Label(new Rect(24f, 20f, FallbackWidth, FallbackHeight), $"Energy {_playerEnergy.CurrentEnergy:0}/{_playerEnergy.MaxEnergy:0}");
-    }
-
-    private void DrawFallbackSpeedText()
-    {
-        if (_speedText != null)
-            return;
-
-        GUI.Label(new Rect(20f, 48f, FallbackWidth, FallbackHeight), $"Speed {_playerMovement.CurrentSpeed:0.0}{_speedSuffix}");
     }
 
     #endregion
