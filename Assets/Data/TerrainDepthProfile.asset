@@ -16,22 +16,22 @@ MonoBehaviour:
   - _name: Stone
     _terrainType: 2
     _startDepth: 24
-    _baseChance: 0.35
+    _baseChance: 0
     _chancePerDepth: 0.004
     _noiseScale: 0.04
     _noiseOffset: 11
   - _name: Iron
     _terrainType: 3
     _startDepth: 80
-    _baseChance: 0.12
-    _chancePerDepth: 0.0025
+    _baseChance: 0
+    _chancePerDepth: 0
     _noiseScale: 0.035
     _noiseOffset: 4.9
   - _name: Gold
     _terrainType: 4
     _startDepth: 1000
     _baseChance: 0
-    _chancePerDepth: 0.0015
+    _chancePerDepth: 0
     _noiseScale: 0.03
     _noiseOffset: 1.5
   - _name: Dirt
@@ -41,10 +41,10 @@ MonoBehaviour:
     _chancePerDepth: 0.347
     _noiseScale: 0.03
     _noiseOffset: 1.5
-  _minimumDirtRatio: 0.7
-  _stoneWeight: 0.6
-  _ironWeight: 0.32
-  _goldWeight: 0.08
+  _minimumDirtRatio: 1
+  _stoneWeight: 0
+  _ironWeight: 0
+  _goldWeight: 0
   _fallbackStoneStartDepth: 0
-  _fallbackIronStartDepth: 32
-  _fallbackGoldStartDepth: 96
+  _fallbackIronStartDepth: 0
+  _fallbackGoldStartDepth: 0

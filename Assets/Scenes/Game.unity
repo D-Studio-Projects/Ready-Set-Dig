@@ -654,7 +654,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 224801242}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d44edaaa5e59ec842bf9c639b11fb187, type: 3}
   m_Name: 
@@ -2133,18 +2133,23 @@ MonoBehaviour:
   _player: {fileID: 661069613}
   _runManager: {fileID: 777100003}
   _camera: {fileID: 519420031}
-  _depthProfile: {fileID: 11400000, guid: a7b8c9d0e1f24356a7b8c9d0e1f24356, type: 2}
-  _chunkWidth: 64
+  _depthProfile: {fileID: 11400000, guid: 236b69caa4440ae4aae878d7fd2f9c61, type: 2}
+  _chunkWidth: 1200
   _chunkHeight: 64
   _pixelsPerUnit: 32
+  _fitWidthToCamera: 1
+  _horizontalMargin: 2
+  _horizontalCoverageBuffer: 4
+  _followPlayerPathHorizontally: 1
   _chunksAhead: 6
+  _cameraPreloadMargin: 4
   _unloadMargin: 4
-  _initialPoolCapacity: 7
-  _maxPoolSize: 10
+  _initialPoolCapacity: 30
+  _maxPoolSize: 55
   _collectionCheck: 1
   _usePlayerPositionAsSurface: 1
   _surfaceWorldY: 0
-  _surfaceOffset: 0
+  _surfaceDistanceBelowPlayer: 4
   _seed: 12345
 --- !u!1 &751114851
 GameObject:
@@ -2272,6 +2277,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _runStatistics: {fileID: 777100004}
+  _playerEnergy: {fileID: 0}
+  _playerMovement: {fileID: 0}
 --- !u!114 &777100004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3336,7 +3343,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1077523107
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5407,8 +5414,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _prefab: {fileID: 1814042643891902287, guid: 292b95ae84e850f4c8237f1d42fbfb50, type: 3}
-  _initialCapacity: 4
-  _maxSize: 10
+  _initialCapacity: 30
+  _maxSize: 55
   _collectionCheck: 1
   _inactiveContainer: {fileID: 1956675066}
 --- !u!4 &1956675066
@@ -5799,6 +5806,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 6124326674597133376, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
+      propertyPath: _maxEnergy
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 6124326674597133376, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
+      propertyPath: _obstacleLayers.m_Bits
+      value: 64
+      objectReference: {fileID: 0}
     - target: {fileID: 6699732051376489492, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
       propertyPath: _chargeBar
       value: 
@@ -5807,6 +5822,10 @@ PrefabInstance:
       propertyPath: _runManager
       value: 
       objectReference: {fileID: 777100003}
+    - target: {fileID: 6699732051376489492, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
+      propertyPath: _playerMovement
+      value: 
+      objectReference: {fileID: 2025668027445295043}
     - target: {fileID: 8557685856626395987, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
       propertyPath: m_LocalPosition.x
       value: -211.69499
