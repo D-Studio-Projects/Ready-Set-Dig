@@ -7,11 +7,17 @@ public class RunStatistics : MonoBehaviour
     [SerializeField]
     private RunManager _runManager;
 
+    [SerializeField]
+    private Transform _player;
+
     private float _time;
     private float _distance;
+    private float _maxDepth;
+    private float _startPositionY;
     private int _money;
     private int _dugBlocks;
     private int _dashCount;
+    private bool _hasRunStarted;
 
     #endregion
 
@@ -20,6 +26,10 @@ public class RunStatistics : MonoBehaviour
     public float Time => _time;
 
     public float Distance => _distance;
+
+    public float Depth => _maxDepth;
+
+    public float MaxDepth => _maxDepth;
 
     public int Money => _money;
 
@@ -35,40 +45,59 @@ public class RunStatistics : MonoBehaviour
 
     #region Unity Methods
 
+    private void Awake()
+    {
+        Reset();
+    }
+
     private void Update()
     {
-        if (_runManager != null && _runManager.IsRunning)
-        {
-            _time += UnityEngine.Time.deltaTime;
-        }
+        if (_runManager == null || !_runManager.IsRunning)
+            return;
+
+        _time += UnityEngine.Time.deltaTime;
+        TrackDepth();
     }
 
     #endregion
 
     #region Public Methods
 
-    public void AddDistance(float amount)
+    public void BeginRun()
     {
-        if (amount <= 0f)
+        if (_player == null)
+        {
+            _hasRunStarted = false;
             return;
+        }
 
-        _distance += amount;
+        _startPositionY = _player.position.y;
+        _maxDepth = 0f;
+        _hasRunStarted = true;
     }
 
-    public void AddMoney(int amount)
+    public void AddDistance(float _amount)
     {
-        if (amount <= 0)
+        if (_amount <= 0f)
             return;
 
-        _money += amount;
+        _distance += _amount;
     }
 
-    public void AddDiggedBlocks(int amount)
+    public void AddMoney(int _amount)
     {
-        if (amount <= 0)
+        if (_amount <= 0)
             return;
 
-        _dugBlocks += amount;
+        _money += _amount;
+    }
+
+    public void AddDiggedBlocks(int _amount)
+    {
+        if (_amount <= 0)
+            return;
+
+        _dugBlocks += _amount;
     }
 
     public void IncrementDashCount()
@@ -76,18 +105,43 @@ public class RunStatistics : MonoBehaviour
         _dashCount++;
     }
 
+    public RunResult CreateResult(RunEndReason _reason)
+    {
+        return new RunResult(
+            _time,
+            _maxDepth,
+            _dugBlocks,
+            _reason
+        );
+    }
+
     public void Reset()
     {
         _time = 0f;
         _distance = 0f;
+        _maxDepth = 0f;
+        _startPositionY = 0f;
         _money = 0;
         _dugBlocks = 0;
         _dashCount = 0;
+        _hasRunStarted = false;
     }
 
     #endregion
 
     #region Private Methods
+
+    private void TrackDepth()
+    {
+        if (!_hasRunStarted || _player == null)
+            return;
+
+        float currentDepth = Mathf.Max(
+            0f,
+            _startPositionY - _player.position.y
+        );
+        _maxDepth = Mathf.Max(_maxDepth, currentDepth);
+    }
 
     #endregion
 }

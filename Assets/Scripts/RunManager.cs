@@ -24,12 +24,14 @@ public class RunManager : MonoBehaviour
 
     public bool IsRunning => CurrentState == RunState.Running;
 
+    public bool IsFinished => CurrentState == RunState.Finished;
+
     #endregion
 
     #region Events
 
     public event Action RunStarted;
-    public event Action RunFinished;
+    public event Action<RunResult> RunFinished;
     public event Action<RunState> StateChanged;
 
     #endregion
@@ -42,27 +44,44 @@ public class RunManager : MonoBehaviour
 
     public void StartLaunch()
     {
+        if (CurrentState != RunState.Waiting)
+            return;
+
         ChangeState(RunState.Launching);
     }
 
     public void StartRun()
     {
-        ResetStatistics();
+        if (CurrentState != RunState.Launching)
+            return;
+
         ChangeState(RunState.Running);
         RunStarted?.Invoke();
     }
 
     public void FinishRun()
     {
-        if (CurrentState == RunState.Finished)
+        FinishRun(RunEndReason.EnergyDepleted);
+    }
+
+    public void FinishRun(RunEndReason _reason)
+    {
+        if (CurrentState != RunState.Running)
             return;
 
+        RunResult result = _runStatistics == null
+            ? new RunResult(0f, 0f, 0, _reason)
+            : _runStatistics.CreateResult(_reason);
+
         ChangeState(RunState.Finished);
-        RunFinished?.Invoke();
+        RunFinished?.Invoke(result);
     }
 
     public void ResetRun()
     {
+        if (CurrentState != RunState.Finished)
+            return;
+
         ResetStatistics();
         ChangeState(RunState.Waiting);
     }
@@ -71,21 +90,19 @@ public class RunManager : MonoBehaviour
 
     #region Private Methods
 
-    private void ChangeState(RunState newState)
+    private void ChangeState(RunState _newState)
     {
-        if (CurrentState == newState)
+        if (CurrentState == _newState)
             return;
 
-        CurrentState = newState;
+        CurrentState = _newState;
         StateChanged?.Invoke(CurrentState);
     }
 
     private void ResetStatistics()
     {
         if (_runStatistics != null)
-        {
             _runStatistics.Reset();
-        }
     }
 
     #endregion

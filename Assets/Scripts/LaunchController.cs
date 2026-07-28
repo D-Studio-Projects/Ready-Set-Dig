@@ -30,6 +30,8 @@ public class LaunchController : MonoBehaviour
 
     public float CurrentCharge => _charge;
 
+    public bool HasLaunched => _hasLaunched;
+
     #endregion
 
     #region Events
@@ -43,15 +45,17 @@ public class LaunchController : MonoBehaviour
     private void Start()
     {
         if (_runManager != null)
-        {
             _runManager.StartLaunch();
-        }
     }
 
     private void Update()
     {
-        if (_hasLaunched || _runManager == null || _runManager.CurrentState != RunState.Launching)
+        if (_hasLaunched ||
+            _runManager == null ||
+            _runManager.CurrentState != RunState.Launching)
+        {
             return;
+        }
 
         UpdateChargeBar();
         HandleLaunchInput();
@@ -61,13 +65,28 @@ public class LaunchController : MonoBehaviour
 
     #region Public Methods
 
+    public void ResetLaunch()
+    {
+        _hasLaunched = false;
+        _charge = 0f;
+        _chargeDirection = 1f;
+
+        if (_chargeBar != null)
+        {
+            _chargeBar.value = _charge;
+
+            if (_hideChargeBarOnLaunch)
+                _chargeBar.gameObject.SetActive(true);
+        }
+    }
+
     #endregion
 
     #region Private Methods
 
     private void UpdateChargeBar()
     {
-        _charge += _chargeDirection * _chargeSpeed * Time.deltaTime;
+        _charge += _chargeDirection * _chargeSpeed * UnityEngine.Time.deltaTime;
 
         if (_charge >= 1f)
         {
@@ -81,9 +100,7 @@ public class LaunchController : MonoBehaviour
         }
 
         if (_chargeBar != null)
-        {
             _chargeBar.value = _charge;
-        }
     }
 
     private void HandleLaunchInput()
@@ -100,9 +117,7 @@ public class LaunchController : MonoBehaviour
         LaunchStarted?.Invoke(_charge);
 
         if (_hideChargeBarOnLaunch && _chargeBar != null)
-        {
             _chargeBar.gameObject.SetActive(false);
-        }
     }
 
     #endregion

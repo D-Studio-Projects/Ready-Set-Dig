@@ -66,9 +66,7 @@ public class PlayerMovement : MonoBehaviour
         _lastTrackedY = transform.position.y;
 
         if (_rigidbody != null)
-        {
             _rigidbody.gravityScale = 0f;
-        }
     }
 
     private void Update()
@@ -76,9 +74,7 @@ public class PlayerMovement : MonoBehaviour
         _input = 0f;
 
         if (_isMoving && _canMoveHorizontal)
-        {
             _input = Input.GetAxisRaw("Horizontal");
-        }
 
         TrackDownwardDistance();
     }
@@ -103,17 +99,13 @@ public class PlayerMovement : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D _other)
     {
         if (_other.CompareTag("Ground"))
-        {
             _canMoveHorizontal = true;
-        }
     }
 
     private void OnTriggerExit2D(Collider2D _other)
     {
         if (_other.CompareTag("Ground"))
-        {
             _canMoveHorizontal = false;
-        }
     }
 
     #endregion
@@ -142,6 +134,7 @@ public class PlayerMovement : MonoBehaviour
     public void StopMovement()
     {
         _isMoving = false;
+        _canMoveHorizontal = false;
         _currentFallSpeed = 0f;
         _currentHorizontalSpeed = 0f;
         _lastTrackedY = transform.position.y;
@@ -149,6 +142,26 @@ public class PlayerMovement : MonoBehaviour
         if (_rigidbody != null)
         {
             _rigidbody.linearVelocity = Vector2.zero;
+            _rigidbody.angularVelocity = 0f;
+        }
+    }
+
+    public void ResetMovement(Vector3 _position, Quaternion _rotation)
+    {
+        _isMoving = false;
+        _canMoveHorizontal = false;
+        _currentFallSpeed = 0f;
+        _currentHorizontalSpeed = 0f;
+        _input = 0f;
+        _launchForce = 0f;
+        _lastTrackedY = _position.y;
+        transform.SetPositionAndRotation(_position, _rotation);
+
+        if (_rigidbody != null)
+        {
+            _rigidbody.gravityScale = 0f;
+            _rigidbody.linearVelocity = Vector2.zero;
+            _rigidbody.angularVelocity = 0f;
         }
     }
 
@@ -161,7 +174,7 @@ public class PlayerMovement : MonoBehaviour
         _currentFallSpeed = Mathf.MoveTowards(
             _currentFallSpeed,
             _maxFallSpeed,
-            _acceleration * Time.fixedDeltaTime
+            _acceleration * UnityEngine.Time.fixedDeltaTime
         );
     }
 
@@ -170,7 +183,7 @@ public class PlayerMovement : MonoBehaviour
         _currentHorizontalSpeed = Mathf.MoveTowards(
             _currentHorizontalSpeed,
             _input * _horizontalSpeed,
-            _horizontalAcceleration * Time.fixedDeltaTime
+            _horizontalAcceleration * UnityEngine.Time.fixedDeltaTime
         );
     }
 
@@ -184,12 +197,12 @@ public class PlayerMovement : MonoBehaviour
         _currentFallSpeed = Mathf.MoveTowards(
             _currentFallSpeed,
             0f,
-            _stopDeceleration * Time.fixedDeltaTime
+            _stopDeceleration * UnityEngine.Time.fixedDeltaTime
         );
         _currentHorizontalSpeed = Mathf.MoveTowards(
             _currentHorizontalSpeed,
             0f,
-            _stopDeceleration * Time.fixedDeltaTime
+            _stopDeceleration * UnityEngine.Time.fixedDeltaTime
         );
         ApplyVelocity();
         ApplyCurvedRotation();
@@ -200,15 +213,13 @@ public class PlayerMovement : MonoBehaviour
         float targetZ = -Mathf.Sign(_currentHorizontalSpeed) * _curveTiltDegrees;
 
         if (Mathf.Abs(_currentHorizontalSpeed) < .05f)
-        {
             targetZ = 0f;
-        }
 
         Quaternion targetRotation = Quaternion.Euler(0f, 0f, targetZ);
         transform.rotation = Quaternion.Lerp(
             transform.rotation,
             targetRotation,
-            _rotationSmoothing * Time.fixedDeltaTime
+            _rotationSmoothing * UnityEngine.Time.fixedDeltaTime
         );
     }
 
@@ -221,9 +232,7 @@ public class PlayerMovement : MonoBehaviour
             float distanceDown = Mathf.Max(0f, _lastTrackedY - currentY);
 
             if (distanceDown > 0f)
-            {
                 DistanceMovedDown?.Invoke(distanceDown);
-            }
         }
 
         _lastTrackedY = currentY;

@@ -75,6 +75,12 @@ public class PlayerEnergy : MonoBehaviour
 
     #region Public Methods
 
+    public void ResetForRun()
+    {
+        _obstacleContacts.Clear();
+        ResetEnergy();
+    }
+
     public void ResetEnergy()
     {
         _currentEnergy = _maxEnergy;

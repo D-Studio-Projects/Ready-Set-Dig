@@ -70,6 +70,15 @@ public class PlayerHud : MonoBehaviour
 
     #region Public Methods
 
+    public void ResetDisplay()
+    {
+        if (_playerEnergy != null)
+            UpdateEnergyBar(_playerEnergy.CurrentEnergy, _playerEnergy.MaxEnergy);
+
+        if (_speedText != null)
+            _speedText.text = $"0.0{_speedSuffix}";
+    }
+
     #endregion
 
     #region Private Methods

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class RunEvents : MonoBehaviour
 {
@@ -22,9 +22,6 @@ public class RunEvents : MonoBehaviour
 
     [SerializeField]
     private RunStatistics _runStatistics;
-
-    [SerializeField]
-    private TerrainChunkManager _terrain;
 
     #endregion
 
@@ -61,17 +58,17 @@ public class RunEvents : MonoBehaviour
         if (_launchController != null)
             _launchController.LaunchStarted += HandleLaunchStarted;
 
+        if (_runManager != null && _runStatistics != null)
+            _runManager.RunStarted += _runStatistics.BeginRun;
+
         if (_runManager != null && _playerMovement != null)
         {
             _runManager.RunStarted += _playerMovement.StartMovement;
-            _runManager.RunFinished += _playerMovement.StopMovement;
+            _runManager.RunFinished += HandleRunFinished;
         }
 
-        if (_runManager != null && _terrain != null)
-            _runManager.RunStarted += _terrain.ResetTerrain;
-
         if (_playerEnergy != null && _runManager != null)
-            _playerEnergy.EnergyDepleted += _runManager.FinishRun;
+            _playerEnergy.EnergyDepleted += HandleEnergyDepleted;
 
         if (_drill != null)
             _drill.DigCompleted += HandleDigCompleted;
@@ -85,17 +82,17 @@ public class RunEvents : MonoBehaviour
         if (_launchController != null)
             _launchController.LaunchStarted -= HandleLaunchStarted;
 
+        if (_runManager != null && _runStatistics != null)
+            _runManager.RunStarted -= _runStatistics.BeginRun;
+
         if (_runManager != null && _playerMovement != null)
         {
             _runManager.RunStarted -= _playerMovement.StartMovement;
-            _runManager.RunFinished -= _playerMovement.StopMovement;
+            _runManager.RunFinished -= HandleRunFinished;
         }
 
-        if (_runManager != null && _terrain != null)
-            _runManager.RunStarted -= _terrain.ResetTerrain;
-
         if (_playerEnergy != null && _runManager != null)
-            _playerEnergy.EnergyDepleted -= _runManager.FinishRun;
+            _playerEnergy.EnergyDepleted -= HandleEnergyDepleted;
 
         if (_drill != null)
             _drill.DigCompleted -= HandleDigCompleted;
@@ -111,6 +108,18 @@ public class RunEvents : MonoBehaviour
 
         if (_runManager != null)
             _runManager.StartRun();
+    }
+
+    private void HandleEnergyDepleted()
+    {
+        if (_runManager != null)
+            _runManager.FinishRun(RunEndReason.EnergyDepleted);
+    }
+
+    private void HandleRunFinished(RunResult _result)
+    {
+        if (_playerMovement != null)
+            _playerMovement.StopMovement();
     }
 
     private void HandleDigCompleted(DigResult _result)

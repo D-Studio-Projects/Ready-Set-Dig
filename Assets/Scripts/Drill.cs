@@ -61,11 +61,11 @@ public class Drill : MonoBehaviour, ITool
         if (!result.HasChanges)
             return;
 
+        DigCompleted?.Invoke(result);
         _playerEnergy.ConsumeToolEnergy(
             _toolData.EnergyConsumption,
             elapsedSinceDig
         );
-        DigCompleted?.Invoke(result);
     }
 
     #endregion
