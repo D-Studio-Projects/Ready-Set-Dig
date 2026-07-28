@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
@@ -7,7 +8,7 @@ public class PlayerProgressData
     #region Fields
 
     [SerializeField]
-    private int _saveVersion = 1;
+    private int _saveVersion = 2;
 
     [SerializeField]
     private long _totalMoney;
@@ -23,6 +24,15 @@ public class PlayerProgressData
 
     [SerializeField]
     private long _totalDugBlocks;
+
+    [SerializeField]
+    private List<string> _ownedEquipmentIds = new List<string>();
+
+    [SerializeField]
+    private string _equippedDrillId;
+
+    [SerializeField]
+    private string _equippedLauncherId;
 
     #endregion
 
@@ -40,6 +50,10 @@ public class PlayerProgressData
 
     public long TotalDugBlocks => _totalDugBlocks;
 
+    public string EquippedDrillId => _equippedDrillId;
+
+    public string EquippedLauncherId => _equippedLauncherId;
+
     #endregion
 
     #region Events
@@ -54,12 +68,98 @@ public class PlayerProgressData
 
     public PlayerProgressData()
     {
-        _saveVersion = 1;
+        _saveVersion = 2;
+        _ownedEquipmentIds = new List<string>();
     }
 
     #endregion
 
-    #region Private Methods
+    #region Internal Methods
+
+    internal bool EnsureOwnedEquipmentCollection()
+    {
+        if (_ownedEquipmentIds != null)
+            return false;
+
+        _ownedEquipmentIds = new List<string>();
+        return true;
+    }
+
+    internal bool OwnsEquipment(string _itemId)
+    {
+        return !string.IsNullOrWhiteSpace(_itemId) &&
+               _ownedEquipmentIds != null &&
+               _ownedEquipmentIds.Contains(_itemId);
+    }
+
+    internal bool AddOwnedEquipment(string _itemId)
+    {
+        if (string.IsNullOrWhiteSpace(_itemId) || OwnsEquipment(_itemId))
+            return false;
+
+        EnsureOwnedEquipmentCollection();
+        _ownedEquipmentIds.Add(_itemId);
+        return true;
+    }
+
+    internal int OwnedEquipmentCount => _ownedEquipmentIds == null ? 0 : _ownedEquipmentIds.Count;
+
+    internal string GetOwnedEquipmentAt(int _index)
+    {
+        if (_ownedEquipmentIds == null || _index < 0 || _index >= _ownedEquipmentIds.Count)
+            return string.Empty;
+
+        return _ownedEquipmentIds[_index];
+    }
+
+    internal void RemoveOwnedEquipmentAt(int _index)
+    {
+        if (_ownedEquipmentIds == null || _index < 0 || _index >= _ownedEquipmentIds.Count)
+            return;
+
+        _ownedEquipmentIds.RemoveAt(_index);
+    }
+
+    internal string GetEquippedEquipmentId(EquipmentType _type)
+    {
+        return _type == EquipmentType.Drill ? _equippedDrillId : _equippedLauncherId;
+    }
+
+    internal bool SetEquippedEquipmentId(EquipmentType _type, string _itemId)
+    {
+        if (_type == EquipmentType.Drill)
+        {
+            if (_equippedDrillId == _itemId)
+                return false;
+
+            _equippedDrillId = _itemId;
+            return true;
+        }
+
+        if (_equippedLauncherId == _itemId)
+            return false;
+
+        _equippedLauncherId = _itemId;
+        return true;
+    }
+
+    internal bool SetSaveVersion(int _version)
+    {
+        if (_saveVersion == _version)
+            return false;
+
+        _saveVersion = _version;
+        return true;
+    }
+
+    internal bool TrySpendMoney(long _amount)
+    {
+        if (_amount < 0 || _totalMoney < _amount)
+            return false;
+
+        _totalMoney -= _amount;
+        return true;
+    }
 
     internal bool Normalize()
     {
@@ -118,6 +218,10 @@ public class PlayerProgressData
         _totalDugBlocks = AddSaturated(_totalDugBlocks, Math.Max(0, _dugBlocks));
     }
 
+    #endregion
+
+    #region Private Methods
+
     private long AddSaturated(long _current, long _amount)
     {
         if (_amount <= 0)
@@ -131,3 +235,4 @@ public class PlayerProgressData
 
     #endregion
 }
+

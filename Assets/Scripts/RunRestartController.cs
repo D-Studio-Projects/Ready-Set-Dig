@@ -30,6 +30,9 @@ public class RunRestartController : MonoBehaviour
     private LaunchController _launchController;
 
     [SerializeField]
+    private PlayerEquipmentController _playerEquipmentController;
+
+    [SerializeField]
     private TerrainChunkManager _terrain;
 
     [Header("Terrain Retry")]
@@ -57,18 +60,6 @@ public class RunRestartController : MonoBehaviour
     private void Awake()
     {
         CaptureStartTransform();
-    }
-
-    private void OnEnable()
-    {
-        if (_runResultUI != null)
-            _runResultUI.RetryRequested += RestartRun;
-    }
-
-    private void OnDisable()
-    {
-        if (_runResultUI != null)
-            _runResultUI.RetryRequested -= RestartRun;
     }
 
     #endregion
@@ -106,6 +97,10 @@ public class RunRestartController : MonoBehaviour
 
         ResetTerrain();
         _runManager.ResetRun();
+
+        if (_playerEquipmentController != null)
+            _playerEquipmentController.ApplyEquippedEquipment();
+
         _runManager.StartLaunch();
         _isRestarting = false;
     }

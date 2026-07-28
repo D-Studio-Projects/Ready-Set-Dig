@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class RunStatistics : MonoBehaviour
 {
@@ -105,9 +105,10 @@ public class RunStatistics : MonoBehaviour
         _dashCount++;
     }
 
-    public RunResult CreateResult(RunEndReason _reason)
+    public RunResult CreateResult(int _runId, RunEndReason _reason)
     {
         return new RunResult(
+            _runId,
             _time,
             _maxDepth,
             _dugBlocks,
@@ -145,3 +146,5 @@ public class RunStatistics : MonoBehaviour
 
     #endregion
 }
+
+

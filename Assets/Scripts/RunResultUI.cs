@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Globalization;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class RunResultUI : MonoBehaviour
@@ -41,8 +42,9 @@ public class RunResultUI : MonoBehaviour
     [SerializeField]
     private Text _recordsText;
 
+    [FormerlySerializedAs("_retryButton")]
     [SerializeField]
-    private Button _retryButton;
+    private Button _continueButton;
 
     [Header("Display")]
     [SerializeField]
@@ -60,7 +62,7 @@ public class RunResultUI : MonoBehaviour
 
     #region Events
 
-    public event Action RetryRequested;
+    public event Action ContinueRequested;
 
     #endregion
 
@@ -71,8 +73,8 @@ public class RunResultUI : MonoBehaviour
         if (_progressService != null)
             _progressService.RunSettled += Show;
 
-        if (_retryButton != null)
-            _retryButton.onClick.AddListener(HandleRetryClicked);
+        if (_continueButton != null)
+            _continueButton.onClick.AddListener(HandleContinueClicked);
 
         Hide();
     }
@@ -82,8 +84,8 @@ public class RunResultUI : MonoBehaviour
         if (_progressService != null)
             _progressService.RunSettled -= Show;
 
-        if (_retryButton != null)
-            _retryButton.onClick.RemoveListener(HandleRetryClicked);
+        if (_continueButton != null)
+            _continueButton.onClick.RemoveListener(HandleContinueClicked);
     }
 
     #endregion
@@ -114,13 +116,13 @@ public class RunResultUI : MonoBehaviour
 
     #region Private Methods
 
-    private void HandleRetryClicked()
+    private void HandleContinueClicked()
     {
         if (!_isVisible)
             return;
 
         Hide();
-        RetryRequested?.Invoke();
+        ContinueRequested?.Invoke();
     }
 
     private void SetTexts(ProgressUpdate _update)
