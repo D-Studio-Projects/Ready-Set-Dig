@@ -23,7 +23,7 @@ public class PlayerProgressService : MonoBehaviour
     [SerializeField]
     private EquipmentCatalog _equipmentCatalog;
 
-    private PlayerProgressData _data;
+    private ProgressData _data;
     private int _lastAppliedRunId;
     private bool _hasLoaded;
     private bool _hasLoggedRewardCalculatorError;
@@ -32,21 +32,23 @@ public class PlayerProgressService : MonoBehaviour
     private bool _equipInProgress;
     private bool _upgradeInProgress;
 
+    private IProgressDataOperations DataOperations => _data;
+
     #endregion
 
     #region Properties
 
     public bool IsLoaded => _hasLoaded;
 
-    public long TotalMoney => _data == null ? 0 : _data.TotalMoney;
+    public long TotalMoney => _data == null ? 0 : DataOperations.TotalMoney;
 
-    public float BestDepth => _data == null ? 0f : _data.BestDepth;
+    public float BestDepth => _data == null ? 0f : DataOperations.BestDepth;
 
-    public long BestScore => _data == null ? 0 : _data.BestScore;
+    public long BestScore => _data == null ? 0 : DataOperations.BestScore;
 
-    public int TotalRuns => _data == null ? 0 : _data.TotalRuns;
+    public int TotalRuns => _data == null ? 0 : DataOperations.TotalRuns;
 
-    public long TotalDugBlocks => _data == null ? 0 : _data.TotalDugBlocks;
+    public long TotalDugBlocks => _data == null ? 0 : DataOperations.TotalDugBlocks;
 
     public string SaveFilePath => Path.Combine(Application.persistentDataPath, SaveFileName);
 
@@ -87,19 +89,19 @@ public class PlayerProgressService : MonoBehaviour
     public bool OwnsEquipment(string _itemId)
     {
         EnsureLoaded();
-        return _data != null && _data.OwnsEquipment(_itemId);
+        return _data != null && DataOperations.OwnsEquipment(_itemId);
     }
 
     public int GetEquipmentLevel(string _equipmentId)
     {
         EnsureLoaded();
-        return _data == null ? 0 : _data.GetEquipmentLevel(_equipmentId);
+        return _data == null ? 0 : DataOperations.GetEquipmentLevel(_equipmentId);
     }
 
     public string GetEquippedEquipmentId(EquipmentType _type)
     {
         EnsureLoaded();
-        return _data == null ? string.Empty : _data.GetEquippedEquipmentId(_type);
+        return _data == null ? string.Empty : DataOperations.GetEquippedEquipmentId(_type);
     }
 
     public bool TryGetEquippedEquipment(
@@ -111,12 +113,12 @@ public class PlayerProgressService : MonoBehaviour
         if (!EnsureLoaded() || _equipmentCatalog == null || _data == null)
             return false;
 
-        string equippedId = _data.GetEquippedEquipmentId(_type);
+        string equippedId = DataOperations.GetEquippedEquipmentId(_type);
 
         if (!_equipmentCatalog.TryGetById(equippedId, out EquipmentItemDefinition item) ||
             item.EquipmentType != _type ||
             !item.HasValidConfiguration() ||
-            !_data.OwnsEquipment(equippedId))
+            !DataOperations.OwnsEquipment(equippedId))
         {
             return false;
         }
@@ -141,10 +143,10 @@ public class PlayerProgressService : MonoBehaviour
             return false;
         }
 
-        bool isOwned = _data.OwnsEquipment(item.Id);
-        bool isEquipped = _data.GetEquippedEquipmentId(item.EquipmentType) == item.Id;
+        bool isOwned = DataOperations.OwnsEquipment(item.Id);
+        bool isEquipped = DataOperations.GetEquippedEquipmentId(item.EquipmentType) == item.Id;
         int maximumLevel = item.GetMaximumUpgradeLevel();
-        int currentLevel = Mathf.Clamp(_data.GetEquipmentLevel(item.Id), 0, maximumLevel);
+        int currentLevel = Mathf.Clamp(DataOperations.GetEquipmentLevel(item.Id), 0, maximumLevel);
 
         if (!TryGetCurrentAttributes(item, currentLevel, out DrillStats currentDrillStats, out float currentLauncherMultiplier))
             return false;
@@ -223,7 +225,7 @@ public class PlayerProgressService : MonoBehaviour
                 return CreatePurchaseFailure(_itemId, PurchaseFailureReason.InvalidItem);
             }
 
-            if (_data.OwnsEquipment(item.Id))
+            if (DataOperations.OwnsEquipment(item.Id))
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.AlreadyOwned);
 
             if (item.Price < 0)
@@ -232,13 +234,13 @@ public class PlayerProgressService : MonoBehaviour
             if (!item.HasValidConfiguration())
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InvalidItem);
 
-            if (_data.TotalMoney < item.Price)
+            if (DataOperations.TotalMoney < item.Price)
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InsufficientMoney);
 
             if (!TrySpendMoney(item.Price))
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InsufficientMoney);
 
-            _data.AddOwnedEquipment(item.Id);
+            DataOperations.AddOwnedEquipment(item.Id);
             bool persistenceSucceeded = Save();
             ProgressChanged?.Invoke();
 
@@ -247,7 +249,7 @@ public class PlayerProgressService : MonoBehaviour
                 persistenceSucceeded ? PurchaseFailureReason.None : PurchaseFailureReason.SaveFailed,
                 item.Id,
                 item.Price,
-                _data.TotalMoney,
+                DataOperations.TotalMoney,
                 persistenceSucceeded
             );
         }
@@ -314,7 +316,7 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            if (!_data.OwnsEquipment(item.Id))
+            if (!DataOperations.OwnsEquipment(item.Id))
             {
                 return CreateUpgradeFailure(
                     item.Id,
@@ -325,7 +327,7 @@ public class PlayerProgressService : MonoBehaviour
             }
 
             int maximumLevel = item.GetMaximumUpgradeLevel();
-            int previousLevel = Mathf.Clamp(_data.GetEquipmentLevel(item.Id), 0, maximumLevel);
+            int previousLevel = Mathf.Clamp(DataOperations.GetEquipmentLevel(item.Id), 0, maximumLevel);
 
             if (previousLevel >= maximumLevel)
             {
@@ -383,7 +385,7 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            if (_data.TotalMoney < price)
+            if (DataOperations.TotalMoney < price)
             {
                 return CreateUpgradeFailure(
                     item.Id,
@@ -393,7 +395,7 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            if (!_data.TrySetEquipmentLevel(item.Id, newLevel))
+            if (!DataOperations.TrySetEquipmentLevel(item.Id, newLevel))
             {
                 return CreateUpgradeFailure(
                     item.Id,
@@ -403,9 +405,9 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            if (!_data.TrySpendMoney(price))
+            if (!DataOperations.TrySpendMoney(price))
             {
-                _data.TrySetEquipmentLevel(item.Id, previousLevel);
+                DataOperations.TrySetEquipmentLevel(item.Id, previousLevel);
                 return CreateUpgradeFailure(
                     item.Id,
                     UpgradePurchaseFailureReason.InsufficientMoney,
@@ -426,7 +428,7 @@ public class PlayerProgressService : MonoBehaviour
                 previousLevel,
                 newLevel,
                 price,
-                _data.TotalMoney,
+                DataOperations.TotalMoney,
                 persistenceSucceeded
             );
         }
@@ -468,7 +470,7 @@ public class PlayerProgressService : MonoBehaviour
                 return CreateEquipFailure(item.Id, EquipFailureReason.InvalidItem);
             }
 
-            if (!_data.OwnsEquipment(item.Id))
+            if (!DataOperations.OwnsEquipment(item.Id))
             {
                 return new EquipResult(
                     false,
@@ -480,7 +482,7 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            string equippedId = _data.GetEquippedEquipmentId(item.EquipmentType);
+            string equippedId = DataOperations.GetEquippedEquipmentId(item.EquipmentType);
 
             if (equippedId == item.Id)
             {
@@ -494,7 +496,7 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            bool changed = _data.SetEquippedEquipmentId(item.EquipmentType, item.Id);
+            bool changed = DataOperations.SetEquippedEquipmentId(item.EquipmentType, item.Id);
             bool persistenceSucceeded = Save();
             ProgressChanged?.Invoke();
 
@@ -519,7 +521,7 @@ public class PlayerProgressService : MonoBehaviour
             return false;
 
         RunReward reward = _rewardCalculator.Calculate(_result);
-        _data.ApplyRunResult(
+        DataOperations.ApplyRunResult(
             _result.Depth,
             reward.Score,
             reward.EarnedMoney,
@@ -607,6 +609,562 @@ public class PlayerProgressService : MonoBehaviour
 
     #endregion
 
+    #region Private Types
+
+    private interface IProgressDataOperations
+    {
+        int SaveVersion { get; }
+        long TotalMoney { get; }
+        float BestDepth { get; }
+        long BestScore { get; }
+        int TotalRuns { get; }
+        long TotalDugBlocks { get; }
+        int OwnedEquipmentCount { get; }
+        int EquipmentUpgradeCount { get; }
+
+        bool EnsureOwnedEquipmentCollection();
+        bool EnsureUpgradeCollection();
+        bool OwnsEquipment(string _itemId);
+        bool AddOwnedEquipment(string _itemId);
+        string GetOwnedEquipmentAt(int _index);
+        void RemoveOwnedEquipmentAt(int _index);
+        string GetEquippedEquipmentId(EquipmentType _type);
+        bool SetEquippedEquipmentId(EquipmentType _type, string _itemId);
+        int GetEquipmentLevel(string _equipmentId);
+        bool TryGetEquipmentUpgradeAt(int _index, out string _equipmentId, out int _level);
+        bool TrySetEquipmentLevel(string _equipmentId, int _level);
+        void ClearEquipmentUpgrades();
+        bool SetSaveVersion(int _version);
+        bool TrySpendMoney(long _amount);
+        bool TryAddMoney(long _amount);
+        bool Normalize();
+        void ApplyRunResult(
+            float _depth,
+            long _score,
+            long _earnedMoney,
+            int _dugBlocks,
+            out long _previousMoney,
+            out bool _isNewBestDepth,
+            out bool _isNewBestScore);
+    }
+private class ProgressData : IProgressDataOperations
+{
+    private interface IUpgradeProgressOperations
+    {
+        string EquipmentId { get; }
+        int Level { get; }
+    }
+
+    [Serializable]
+    private class UpgradeProgress : IUpgradeProgressOperations
+    {
+        #region Fields
+
+        [SerializeField]
+        private string _equipmentId;
+
+        [SerializeField]
+        private int _level;
+
+        #endregion
+
+        #region Properties
+
+        string IUpgradeProgressOperations.EquipmentId => _equipmentId;
+
+        int IUpgradeProgressOperations.Level => _level;
+
+        #endregion
+
+        #region Events
+
+        #endregion
+
+        #region Unity Methods
+
+        #endregion
+
+        #region Private Methods
+
+        public UpgradeProgress()
+        {
+            _equipmentId = string.Empty;
+            _level = 0;
+        }
+
+        public UpgradeProgress(string _equipmentId, int _level)
+        {
+            this._equipmentId = _equipmentId;
+            this._level = _level;
+        }
+
+        #endregion
+    }
+    #region Fields
+
+    [SerializeField]
+    private int _saveVersion = 3;
+
+    [SerializeField]
+    private long _totalMoney;
+
+    [SerializeField]
+    private float _bestDepth;
+
+    [SerializeField]
+    private long _bestScore;
+
+    [SerializeField]
+    private int _totalRuns;
+
+    [SerializeField]
+    private long _totalDugBlocks;
+
+    [SerializeField]
+    private List<string> _ownedEquipmentIds = new List<string>();
+
+    [SerializeField]
+    private string _equippedDrillId;
+
+    [SerializeField]
+    private string _equippedLauncherId;
+
+    [SerializeField]
+    private List<UpgradeProgress> _equipmentUpgrades =
+        new List<UpgradeProgress>();
+
+    #endregion
+
+    #region Properties
+
+    private int SaveVersion => _saveVersion;
+
+    private long TotalMoney => _totalMoney;
+
+    private float BestDepth => _bestDepth;
+
+    private long BestScore => _bestScore;
+
+    private int TotalRuns => _totalRuns;
+
+    private long TotalDugBlocks => _totalDugBlocks;
+
+    private string EquippedDrillId => _equippedDrillId;
+
+    private string EquippedLauncherId => _equippedLauncherId;
+
+    private int OwnedEquipmentCount => _ownedEquipmentIds == null ? 0 : _ownedEquipmentIds.Count;
+
+    private int EquipmentUpgradeCount => _equipmentUpgrades == null ? 0 : _equipmentUpgrades.Count;
+
+    #endregion
+
+    #region Events
+
+    #endregion
+
+    #region Unity Methods
+
+    #endregion
+
+    #region Private Methods
+
+    public ProgressData()
+    {
+        _saveVersion = 3;
+        _ownedEquipmentIds = new List<string>();
+        _equipmentUpgrades = new List<UpgradeProgress>();
+    }
+
+    private bool EnsureOwnedEquipmentCollection()
+    {
+        if (_ownedEquipmentIds != null)
+            return false;
+
+        _ownedEquipmentIds = new List<string>();
+        return true;
+    }
+
+    private bool EnsureUpgradeCollection()
+    {
+        if (_equipmentUpgrades != null)
+            return false;
+
+        _equipmentUpgrades = new List<UpgradeProgress>();
+        return true;
+    }
+
+    private bool OwnsEquipment(string _itemId)
+    {
+        return !string.IsNullOrWhiteSpace(_itemId) &&
+               _ownedEquipmentIds != null &&
+               _ownedEquipmentIds.Contains(_itemId);
+    }
+
+    private bool AddOwnedEquipment(string _itemId)
+    {
+        if (string.IsNullOrWhiteSpace(_itemId) || OwnsEquipment(_itemId))
+            return false;
+
+        EnsureOwnedEquipmentCollection();
+        _ownedEquipmentIds.Add(_itemId);
+        return true;
+    }
+
+    private string GetOwnedEquipmentAt(int _index)
+    {
+        if (_ownedEquipmentIds == null || _index < 0 || _index >= _ownedEquipmentIds.Count)
+            return string.Empty;
+
+        return _ownedEquipmentIds[_index];
+    }
+
+    private void RemoveOwnedEquipmentAt(int _index)
+    {
+        if (_ownedEquipmentIds == null || _index < 0 || _index >= _ownedEquipmentIds.Count)
+            return;
+
+        _ownedEquipmentIds.RemoveAt(_index);
+    }
+
+    private string GetEquippedEquipmentId(EquipmentType _type)
+    {
+        if (_type == EquipmentType.Drill)
+            return _equippedDrillId;
+
+        if (_type == EquipmentType.Launcher)
+            return _equippedLauncherId;
+
+        return string.Empty;
+    }
+
+    private bool SetEquippedEquipmentId(EquipmentType _type, string _itemId)
+    {
+        if (_type != EquipmentType.Drill && _type != EquipmentType.Launcher)
+            return false;
+
+        string normalizedId = _itemId ?? string.Empty;
+
+        if (_type == EquipmentType.Drill)
+        {
+            if (_equippedDrillId == normalizedId)
+                return false;
+
+            _equippedDrillId = normalizedId;
+            return true;
+        }
+
+        if (_equippedLauncherId == normalizedId)
+            return false;
+
+        _equippedLauncherId = normalizedId;
+        return true;
+    }
+
+    private int GetEquipmentLevel(string _equipmentId)
+    {
+        if (string.IsNullOrWhiteSpace(_equipmentId) || _equipmentUpgrades == null)
+            return 0;
+
+        for (int index = 0; index < _equipmentUpgrades.Count; index++)
+        {
+            UpgradeProgress progress = _equipmentUpgrades[index];
+
+            if (progress != null && ((IUpgradeProgressOperations)progress).EquipmentId == _equipmentId)
+                return Mathf.Max(0, ((IUpgradeProgressOperations)progress).Level);
+        }
+
+        return 0;
+    }
+
+    private UpgradeProgress GetEquipmentUpgradeAt(int _index)
+    {
+        if (_equipmentUpgrades == null || _index < 0 || _index >= _equipmentUpgrades.Count)
+            return null;
+
+        return _equipmentUpgrades[_index];
+    }
+
+    private bool TrySetEquipmentLevel(string _equipmentId, int _level)
+    {
+        if (string.IsNullOrWhiteSpace(_equipmentId) || _level < 0)
+            return false;
+
+        EnsureUpgradeCollection();
+
+        for (int index = 0; index < _equipmentUpgrades.Count; index++)
+        {
+            UpgradeProgress progress = _equipmentUpgrades[index];
+
+            if (progress == null || ((IUpgradeProgressOperations)progress).EquipmentId != _equipmentId)
+                continue;
+
+            if (((IUpgradeProgressOperations)progress).Level == _level)
+                return false;
+
+            _equipmentUpgrades[index] = new UpgradeProgress(_equipmentId, _level);
+            return true;
+        }
+
+        _equipmentUpgrades.Add(new UpgradeProgress(_equipmentId, _level));
+        return true;
+    }
+
+    private void RemoveEquipmentUpgradeAt(int _index)
+    {
+        if (_equipmentUpgrades == null || _index < 0 || _index >= _equipmentUpgrades.Count)
+            return;
+
+        _equipmentUpgrades.RemoveAt(_index);
+    }
+
+    private void ClearEquipmentUpgrades()
+    {
+        EnsureUpgradeCollection();
+        _equipmentUpgrades.Clear();
+    }
+
+    private bool SetSaveVersion(int _version)
+    {
+        if (_version <= 0 || _saveVersion == _version)
+            return false;
+
+        _saveVersion = _version;
+        return true;
+    }
+
+    private bool TrySpendMoney(long _amount)
+    {
+        if (_amount < 0 || _totalMoney < _amount)
+            return false;
+
+        _totalMoney -= _amount;
+        return true;
+    }
+
+    private bool TryAddMoney(long _amount)
+    {
+        if (_amount <= 0 || long.MaxValue - _totalMoney < _amount)
+            return false;
+
+        _totalMoney += _amount;
+        return true;
+    }
+
+    private bool Normalize()
+    {
+        bool changed = false;
+
+        if (_totalMoney < 0)
+        {
+            _totalMoney = 0;
+            changed = true;
+        }
+
+        if (_bestDepth < 0f || float.IsNaN(_bestDepth) || float.IsInfinity(_bestDepth))
+        {
+            _bestDepth = 0f;
+            changed = true;
+        }
+
+        if (_bestScore < 0)
+        {
+            _bestScore = 0;
+            changed = true;
+        }
+
+        if (_totalRuns < 0)
+        {
+            _totalRuns = 0;
+            changed = true;
+        }
+
+        if (_totalDugBlocks < 0)
+        {
+            _totalDugBlocks = 0;
+            changed = true;
+        }
+
+        changed |= EnsureOwnedEquipmentCollection();
+        changed |= EnsureUpgradeCollection();
+        return changed;
+    }
+
+    private void ApplyRunResult(
+        float _depth,
+        long _score,
+        long _earnedMoney,
+        int _dugBlocks,
+        out long _previousMoney,
+        out bool _isNewBestDepth,
+        out bool _isNewBestScore)
+    {
+        _previousMoney = _totalMoney;
+        _isNewBestDepth = _depth > _bestDepth;
+        _isNewBestScore = _score > _bestScore;
+
+        _totalMoney = AddSaturated(_totalMoney, _earnedMoney);
+        _bestDepth = Math.Max(_bestDepth, _depth);
+        _bestScore = Math.Max(_bestScore, _score);
+        _totalRuns = _totalRuns == int.MaxValue ? int.MaxValue : _totalRuns + 1;
+        _totalDugBlocks = AddSaturated(_totalDugBlocks, Math.Max(0, _dugBlocks));
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private long AddSaturated(long _current, long _amount)
+    {
+        if (_amount <= 0)
+            return _current;
+
+        if (long.MaxValue - _current < _amount)
+            return long.MaxValue;
+
+        return _current + _amount;
+    }
+
+    #endregion
+    #region Service Accessors
+
+    int IProgressDataOperations.SaveVersion => SaveVersion;
+    long IProgressDataOperations.TotalMoney => TotalMoney;
+    float IProgressDataOperations.BestDepth => BestDepth;
+    long IProgressDataOperations.BestScore => BestScore;
+    int IProgressDataOperations.TotalRuns => TotalRuns;
+    long IProgressDataOperations.TotalDugBlocks => TotalDugBlocks;
+    int IProgressDataOperations.OwnedEquipmentCount => OwnedEquipmentCount;
+    int IProgressDataOperations.EquipmentUpgradeCount => EquipmentUpgradeCount;
+
+    bool IProgressDataOperations.EnsureOwnedEquipmentCollection()
+    {
+        return EnsureOwnedEquipmentCollection();
+    }
+
+    bool IProgressDataOperations.EnsureUpgradeCollection()
+    {
+        return EnsureUpgradeCollection();
+    }
+
+    bool IProgressDataOperations.OwnsEquipment(string _itemId)
+    {
+        return OwnsEquipment(_itemId);
+    }
+
+    bool IProgressDataOperations.AddOwnedEquipment(string _itemId)
+    {
+        return AddOwnedEquipment(_itemId);
+    }
+
+    string IProgressDataOperations.GetOwnedEquipmentAt(int _index)
+    {
+        return GetOwnedEquipmentAt(_index);
+    }
+
+    void IProgressDataOperations.RemoveOwnedEquipmentAt(int _index)
+    {
+        RemoveOwnedEquipmentAt(_index);
+    }
+
+    string IProgressDataOperations.GetEquippedEquipmentId(EquipmentType _type)
+    {
+        return GetEquippedEquipmentId(_type);
+    }
+
+    bool IProgressDataOperations.SetEquippedEquipmentId(
+        EquipmentType _type,
+        string _itemId)
+    {
+        return SetEquippedEquipmentId(_type, _itemId);
+    }
+
+    int IProgressDataOperations.GetEquipmentLevel(string _equipmentId)
+    {
+        return GetEquipmentLevel(_equipmentId);
+    }
+
+    bool IProgressDataOperations.TryGetEquipmentUpgradeAt(
+        int _index,
+        out string _equipmentId,
+        out int _level)
+    {
+        _equipmentId = string.Empty;
+        _level = 0;
+
+        if (_equipmentUpgrades == null ||
+            _index < 0 ||
+            _index >= _equipmentUpgrades.Count)
+        {
+            return false;
+        }
+
+        UpgradeProgress progress = _equipmentUpgrades[_index];
+
+        if (progress == null)
+            return false;
+
+        _equipmentId = ((IUpgradeProgressOperations)progress).EquipmentId;
+        _level = ((IUpgradeProgressOperations)progress).Level;
+        return true;
+    }
+
+    bool IProgressDataOperations.TrySetEquipmentLevel(
+        string _equipmentId,
+        int _level)
+    {
+        return TrySetEquipmentLevel(_equipmentId, _level);
+    }
+
+    void IProgressDataOperations.ClearEquipmentUpgrades()
+    {
+        ClearEquipmentUpgrades();
+    }
+
+    bool IProgressDataOperations.SetSaveVersion(int _version)
+    {
+        return SetSaveVersion(_version);
+    }
+
+    bool IProgressDataOperations.TrySpendMoney(long _amount)
+    {
+        return TrySpendMoney(_amount);
+    }
+
+    bool IProgressDataOperations.TryAddMoney(long _amount)
+    {
+        return TryAddMoney(_amount);
+    }
+
+    bool IProgressDataOperations.Normalize()
+    {
+        return Normalize();
+    }
+
+    void IProgressDataOperations.ApplyRunResult(
+        float _depth,
+        long _score,
+        long _earnedMoney,
+        int _dugBlocks,
+        out long _previousMoney,
+        out bool _isNewBestDepth,
+        out bool _isNewBestScore)
+    {
+        ApplyRunResult(
+            _depth,
+            _score,
+            _earnedMoney,
+            _dugBlocks,
+            out _previousMoney,
+            out _isNewBestDepth,
+            out _isNewBestScore
+        );
+    }
+
+    #endregion
+}
+    #endregion
+
     #region Private Methods
 
     private void HandleRunFinished(RunResult _result)
@@ -638,18 +1196,18 @@ public class PlayerProgressService : MonoBehaviour
                 return;
             }
 
-            PlayerProgressData loadedData = JsonUtility.FromJson<PlayerProgressData>(json);
+            ProgressData loadedData = JsonUtility.FromJson<ProgressData>(json);
 
             if (loadedData == null ||
-                loadedData.SaveVersion <= 0 ||
-                loadedData.SaveVersion > CurrentSaveVersion)
+                ((IProgressDataOperations)loadedData).SaveVersion <= 0 ||
+                ((IProgressDataOperations)loadedData).SaveVersion > CurrentSaveVersion)
             {
                 HandleInvalidSave("The progress file has an unsupported save version.");
                 return;
             }
 
             _data = loadedData;
-            bool changed = _data.Normalize();
+            bool changed = DataOperations.Normalize();
             changed |= MigrateToCurrentVersion();
             changed |= EnsureEquipmentData();
             changed |= NormalizeUpgradeData();
@@ -684,17 +1242,17 @@ public class PlayerProgressService : MonoBehaviour
     {
         bool changed = false;
 
-        while (_data.SaveVersion < CurrentSaveVersion)
+        while (DataOperations.SaveVersion < CurrentSaveVersion)
         {
-            if (_data.SaveVersion == 1)
+            if (DataOperations.SaveVersion == 1)
             {
-                changed |= _data.SetSaveVersion(2);
+                changed |= DataOperations.SetSaveVersion(2);
                 continue;
             }
 
-            if (_data.SaveVersion == 2)
+            if (DataOperations.SaveVersion == 2)
             {
-                changed |= _data.SetSaveVersion(3);
+                changed |= DataOperations.SetSaveVersion(3);
                 continue;
             }
 
@@ -709,7 +1267,7 @@ public class PlayerProgressService : MonoBehaviour
         if (_data == null)
             return false;
 
-        bool changed = _data.EnsureOwnedEquipmentCollection();
+        bool changed = DataOperations.EnsureOwnedEquipmentCollection();
 
         if (_equipmentCatalog == null)
         {
@@ -719,13 +1277,13 @@ public class PlayerProgressService : MonoBehaviour
 
         HashSet<string> seenIds = new HashSet<string>();
 
-        for (int index = _data.OwnedEquipmentCount - 1; index >= 0; index--)
+        for (int index = DataOperations.OwnedEquipmentCount - 1; index >= 0; index--)
         {
-            string itemId = _data.GetOwnedEquipmentAt(index);
+            string itemId = DataOperations.GetOwnedEquipmentAt(index);
 
             if (string.IsNullOrWhiteSpace(itemId) || !seenIds.Add(itemId))
             {
-                _data.RemoveOwnedEquipmentAt(index);
+                DataOperations.RemoveOwnedEquipmentAt(index);
                 changed = true;
             }
         }
@@ -742,21 +1300,21 @@ public class PlayerProgressService : MonoBehaviour
         if (_data == null)
             return false;
 
-        bool changed = _data.EnsureUpgradeCollection();
+        bool changed = DataOperations.EnsureUpgradeCollection();
         Dictionary<string, int> normalizedLevels = new Dictionary<string, int>();
 
-        for (int index = 0; index < _data.EquipmentUpgradeCount; index++)
+        for (int index = 0; index < DataOperations.EquipmentUpgradeCount; index++)
         {
-            EquipmentUpgradeProgress progress = _data.GetEquipmentUpgradeAt(index);
-
-            if (progress == null || string.IsNullOrWhiteSpace(progress.EquipmentId))
+            if (!DataOperations.TryGetEquipmentUpgradeAt(
+                    index,
+                    out string equipmentId,
+                    out int rawLevel))
             {
                 changed = true;
                 continue;
             }
 
-            string equipmentId = progress.EquipmentId;
-            int normalizedLevel = Mathf.Max(0, progress.Level);
+            int normalizedLevel = Mathf.Max(0, rawLevel);
 
             if (_equipmentCatalog != null &&
                 _equipmentCatalog.TryGetById(equipmentId, out EquipmentItemDefinition item))
@@ -768,7 +1326,7 @@ public class PlayerProgressService : MonoBehaviour
                 );
             }
 
-            if (normalizedLevel != progress.Level)
+            if (normalizedLevel != rawLevel)
                 changed = true;
 
             if (normalizedLevels.TryGetValue(equipmentId, out int existingLevel))
@@ -784,10 +1342,10 @@ public class PlayerProgressService : MonoBehaviour
         if (!changed)
             return false;
 
-        _data.ClearEquipmentUpgrades();
+        DataOperations.ClearEquipmentUpgrades();
 
         foreach (KeyValuePair<string, int> entry in normalizedLevels)
-            _data.TrySetEquipmentLevel(entry.Key, entry.Value);
+            DataOperations.TrySetEquipmentLevel(entry.Key, entry.Value);
 
         return true;
     }
@@ -797,12 +1355,12 @@ public class PlayerProgressService : MonoBehaviour
         if (!_equipmentCatalog.TryGetDefault(_type, out EquipmentItemDefinition item))
             return false;
 
-        return _data.AddOwnedEquipment(item.Id);
+        return DataOperations.AddOwnedEquipment(item.Id);
     }
 
     private bool EnsureValidEquippedEquipment(EquipmentType _type)
     {
-        string currentId = _data.GetEquippedEquipmentId(_type);
+        string currentId = DataOperations.GetEquippedEquipmentId(_type);
 
         if (IsValidEquippedId(currentId, _type))
             return false;
@@ -812,12 +1370,12 @@ public class PlayerProgressService : MonoBehaviour
         if (_equipmentCatalog.TryGetDefault(_type, out EquipmentItemDefinition defaultItem))
             fallbackId = defaultItem.Id;
 
-        return _data.SetEquippedEquipmentId(_type, fallbackId);
+        return DataOperations.SetEquippedEquipmentId(_type, fallbackId);
     }
 
     private bool IsValidEquippedId(string _itemId, EquipmentType _type)
     {
-        return _data.OwnsEquipment(_itemId) &&
+        return DataOperations.OwnsEquipment(_itemId) &&
                _equipmentCatalog.TryGetById(_itemId, out EquipmentItemDefinition item) &&
                item.EquipmentType == _type &&
                item.HasValidConfiguration();
@@ -852,7 +1410,7 @@ public class PlayerProgressService : MonoBehaviour
 
     private bool TrySpendMoney(long _amount)
     {
-        return _data != null && _data.TrySpendMoney(_amount);
+        return _data != null && DataOperations.TrySpendMoney(_amount);
     }
 
     private bool CanApplyRunResult(RunResult _result)
@@ -891,9 +1449,9 @@ public class PlayerProgressService : MonoBehaviour
         return _hasLoaded && _data != null;
     }
 
-    private PlayerProgressData CreateDefaultData()
+    private ProgressData CreateDefaultData()
     {
-        return new PlayerProgressData();
+        return new ProgressData();
     }
 
     private PurchaseResult CreatePurchaseFailure(
@@ -1032,7 +1590,7 @@ public class PlayerProgressService : MonoBehaviour
     [ContextMenu("Development/Add Test Money")]
     private void AddTestMoney()
     {
-        if (!EnsureLoaded() || _data == null || !_data.TryAddMoney(1000))
+        if (!EnsureLoaded() || _data == null || !DataOperations.TryAddMoney(1000))
             return;
 
         Save();
