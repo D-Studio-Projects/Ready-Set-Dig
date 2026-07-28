@@ -8,7 +8,7 @@ public class PlayerProgressData
     #region Fields
 
     [SerializeField]
-    private int _saveVersion = 2;
+    private int _saveVersion = 3;
 
     [SerializeField]
     private long _totalMoney;
@@ -34,6 +34,10 @@ public class PlayerProgressData
     [SerializeField]
     private string _equippedLauncherId;
 
+    [SerializeField]
+    private List<EquipmentUpgradeProgress> _equipmentUpgrades =
+        new List<EquipmentUpgradeProgress>();
+
     #endregion
 
     #region Properties
@@ -54,6 +58,10 @@ public class PlayerProgressData
 
     public string EquippedLauncherId => _equippedLauncherId;
 
+    public int OwnedEquipmentCount => _ownedEquipmentIds == null ? 0 : _ownedEquipmentIds.Count;
+
+    public int EquipmentUpgradeCount => _equipmentUpgrades == null ? 0 : _equipmentUpgrades.Count;
+
     #endregion
 
     #region Events
@@ -68,15 +76,12 @@ public class PlayerProgressData
 
     public PlayerProgressData()
     {
-        _saveVersion = 2;
+        _saveVersion = 3;
         _ownedEquipmentIds = new List<string>();
+        _equipmentUpgrades = new List<EquipmentUpgradeProgress>();
     }
 
-    #endregion
-
-    #region Internal Methods
-
-    internal bool EnsureOwnedEquipmentCollection()
+    public bool EnsureOwnedEquipmentCollection()
     {
         if (_ownedEquipmentIds != null)
             return false;
@@ -85,14 +90,23 @@ public class PlayerProgressData
         return true;
     }
 
-    internal bool OwnsEquipment(string _itemId)
+    public bool EnsureUpgradeCollection()
+    {
+        if (_equipmentUpgrades != null)
+            return false;
+
+        _equipmentUpgrades = new List<EquipmentUpgradeProgress>();
+        return true;
+    }
+
+    public bool OwnsEquipment(string _itemId)
     {
         return !string.IsNullOrWhiteSpace(_itemId) &&
                _ownedEquipmentIds != null &&
                _ownedEquipmentIds.Contains(_itemId);
     }
 
-    internal bool AddOwnedEquipment(string _itemId)
+    public bool AddOwnedEquipment(string _itemId)
     {
         if (string.IsNullOrWhiteSpace(_itemId) || OwnsEquipment(_itemId))
             return false;
@@ -102,9 +116,7 @@ public class PlayerProgressData
         return true;
     }
 
-    internal int OwnedEquipmentCount => _ownedEquipmentIds == null ? 0 : _ownedEquipmentIds.Count;
-
-    internal string GetOwnedEquipmentAt(int _index)
+    public string GetOwnedEquipmentAt(int _index)
     {
         if (_ownedEquipmentIds == null || _index < 0 || _index >= _ownedEquipmentIds.Count)
             return string.Empty;
@@ -112,7 +124,7 @@ public class PlayerProgressData
         return _ownedEquipmentIds[_index];
     }
 
-    internal void RemoveOwnedEquipmentAt(int _index)
+    public void RemoveOwnedEquipmentAt(int _index)
     {
         if (_ownedEquipmentIds == null || _index < 0 || _index >= _ownedEquipmentIds.Count)
             return;
@@ -120,39 +132,113 @@ public class PlayerProgressData
         _ownedEquipmentIds.RemoveAt(_index);
     }
 
-    internal string GetEquippedEquipmentId(EquipmentType _type)
-    {
-        return _type == EquipmentType.Drill ? _equippedDrillId : _equippedLauncherId;
-    }
-
-    internal bool SetEquippedEquipmentId(EquipmentType _type, string _itemId)
+    public string GetEquippedEquipmentId(EquipmentType _type)
     {
         if (_type == EquipmentType.Drill)
+            return _equippedDrillId;
+
+        if (_type == EquipmentType.Launcher)
+            return _equippedLauncherId;
+
+        return string.Empty;
+    }
+
+    public bool SetEquippedEquipmentId(EquipmentType _type, string _itemId)
+    {
+        if (_type != EquipmentType.Drill && _type != EquipmentType.Launcher)
+            return false;
+
+        string normalizedId = _itemId ?? string.Empty;
+
+        if (_type == EquipmentType.Drill)
         {
-            if (_equippedDrillId == _itemId)
+            if (_equippedDrillId == normalizedId)
                 return false;
 
-            _equippedDrillId = _itemId;
+            _equippedDrillId = normalizedId;
             return true;
         }
 
-        if (_equippedLauncherId == _itemId)
+        if (_equippedLauncherId == normalizedId)
             return false;
 
-        _equippedLauncherId = _itemId;
+        _equippedLauncherId = normalizedId;
         return true;
     }
 
-    internal bool SetSaveVersion(int _version)
+    public int GetEquipmentLevel(string _equipmentId)
     {
-        if (_saveVersion == _version)
+        if (string.IsNullOrWhiteSpace(_equipmentId) || _equipmentUpgrades == null)
+            return 0;
+
+        for (int index = 0; index < _equipmentUpgrades.Count; index++)
+        {
+            EquipmentUpgradeProgress progress = _equipmentUpgrades[index];
+
+            if (progress != null && progress.EquipmentId == _equipmentId)
+                return Mathf.Max(0, progress.Level);
+        }
+
+        return 0;
+    }
+
+    public EquipmentUpgradeProgress GetEquipmentUpgradeAt(int _index)
+    {
+        if (_equipmentUpgrades == null || _index < 0 || _index >= _equipmentUpgrades.Count)
+            return null;
+
+        return _equipmentUpgrades[_index];
+    }
+
+    public bool TrySetEquipmentLevel(string _equipmentId, int _level)
+    {
+        if (string.IsNullOrWhiteSpace(_equipmentId) || _level < 0)
+            return false;
+
+        EnsureUpgradeCollection();
+
+        for (int index = 0; index < _equipmentUpgrades.Count; index++)
+        {
+            EquipmentUpgradeProgress progress = _equipmentUpgrades[index];
+
+            if (progress == null || progress.EquipmentId != _equipmentId)
+                continue;
+
+            if (progress.Level == _level)
+                return false;
+
+            _equipmentUpgrades[index] = new EquipmentUpgradeProgress(_equipmentId, _level);
+            return true;
+        }
+
+        _equipmentUpgrades.Add(new EquipmentUpgradeProgress(_equipmentId, _level));
+        return true;
+    }
+
+    public void RemoveEquipmentUpgradeAt(int _index)
+    {
+        if (_equipmentUpgrades == null || _index < 0 || _index >= _equipmentUpgrades.Count)
+            return;
+
+        _equipmentUpgrades.RemoveAt(_index);
+    }
+
+    public void ClearEquipmentUpgrades()
+    {
+        EnsureUpgradeCollection();
+        _equipmentUpgrades.Clear();
+    }
+
+    public bool SetSaveVersion(int _version)
+    {
+        if (_version <= 0 || _saveVersion == _version)
             return false;
 
         _saveVersion = _version;
         return true;
     }
 
-    internal bool TrySpendMoney(long _amount)
+    public bool TrySpendMoney(long _amount)
     {
         if (_amount < 0 || _totalMoney < _amount)
             return false;
@@ -161,7 +247,16 @@ public class PlayerProgressData
         return true;
     }
 
-    internal bool Normalize()
+    public bool TryAddMoney(long _amount)
+    {
+        if (_amount <= 0 || long.MaxValue - _totalMoney < _amount)
+            return false;
+
+        _totalMoney += _amount;
+        return true;
+    }
+
+    public bool Normalize()
     {
         bool changed = false;
 
@@ -195,10 +290,12 @@ public class PlayerProgressData
             changed = true;
         }
 
+        changed |= EnsureOwnedEquipmentCollection();
+        changed |= EnsureUpgradeCollection();
         return changed;
     }
 
-    internal void ApplyRunResult(
+    public void ApplyRunResult(
         float _depth,
         long _score,
         long _earnedMoney,
@@ -235,4 +332,3 @@ public class PlayerProgressData
 
     #endregion
 }
-

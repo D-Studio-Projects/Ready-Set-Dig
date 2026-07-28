@@ -8,8 +8,7 @@ public class PlayerProgressService : MonoBehaviour
 {
     #region Fields
 
-    public const int CurrentSaveVersion = 2;
-
+    private const int CurrentSaveVersion = 3;
     private const string SaveFileName = "player_progress.json";
     private const string SaveTemporarySuffix = ".tmp";
     private const string SaveBackupSuffix = ".backup.json";
@@ -31,6 +30,7 @@ public class PlayerProgressService : MonoBehaviour
     private bool _hasLoggedCatalogError;
     private bool _purchaseInProgress;
     private bool _equipInProgress;
+    private bool _upgradeInProgress;
 
     #endregion
 
@@ -90,6 +90,12 @@ public class PlayerProgressService : MonoBehaviour
         return _data != null && _data.OwnsEquipment(_itemId);
     }
 
+    public int GetEquipmentLevel(string _equipmentId)
+    {
+        EnsureLoaded();
+        return _data == null ? 0 : _data.GetEquipmentLevel(_equipmentId);
+    }
+
     public string GetEquippedEquipmentId(EquipmentType _type)
     {
         EnsureLoaded();
@@ -116,6 +122,77 @@ public class PlayerProgressService : MonoBehaviour
         }
 
         _item = item;
+        return true;
+    }
+
+    public bool TryGetEquipmentUpgradeInfo(
+        string _equipmentId,
+        out EquipmentUpgradeInfo _info)
+    {
+        _info = default;
+
+        if (!EnsureLoaded() || _data == null)
+            return false;
+
+        if (_equipmentCatalog == null ||
+            !_equipmentCatalog.TryGetById(_equipmentId, out EquipmentItemDefinition item) ||
+            !item.HasValidConfiguration())
+        {
+            return false;
+        }
+
+        bool isOwned = _data.OwnsEquipment(item.Id);
+        bool isEquipped = _data.GetEquippedEquipmentId(item.EquipmentType) == item.Id;
+        int maximumLevel = item.GetMaximumUpgradeLevel();
+        int currentLevel = Mathf.Clamp(_data.GetEquipmentLevel(item.Id), 0, maximumLevel);
+
+        if (!TryGetCurrentAttributes(item, currentLevel, out DrillStats currentDrillStats, out float currentLauncherMultiplier))
+            return false;
+
+        bool hasNextLevel = false;
+        bool canPurchaseUpgrade = false;
+        long nextLevelPrice = 0;
+        DrillStats nextDrillStats = default;
+        float nextLauncherMultiplier = 0f;
+
+        if (isOwned &&
+            currentLevel < maximumLevel &&
+            item.HasValidUpgradeConfiguration())
+        {
+            int nextLevel = currentLevel + 1;
+            bool hasPrice = item.TryGetUpgradePrice(nextLevel, out nextLevelPrice);
+            bool hasAttributes = TryGetAttributes(
+                item,
+                nextLevel,
+                out nextDrillStats,
+                out nextLauncherMultiplier
+            );
+
+            hasNextLevel = hasPrice && hasAttributes;
+
+            if (hasNextLevel)
+            {
+                canPurchaseUpgrade = nextLevelPrice >= 0 && TotalMoney >= nextLevelPrice;
+            }
+        }
+
+        _info = new EquipmentUpgradeInfo(
+            item.Id,
+            item.DisplayName,
+            item.EquipmentType,
+            isOwned,
+            isEquipped,
+            currentLevel,
+            maximumLevel,
+            hasNextLevel,
+            canPurchaseUpgrade,
+            nextLevelPrice,
+            TotalMoney,
+            currentDrillStats,
+            nextDrillStats,
+            currentLauncherMultiplier,
+            nextLauncherMultiplier
+        );
         return true;
     }
 
@@ -147,28 +224,19 @@ public class PlayerProgressService : MonoBehaviour
             }
 
             if (_data.OwnsEquipment(item.Id))
-            {
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.AlreadyOwned);
-            }
 
             if (item.Price < 0)
-            {
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InvalidPrice);
-            }
 
             if (!item.HasValidConfiguration())
-            {
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InvalidItem);
-            }
+
             if (_data.TotalMoney < item.Price)
-            {
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InsufficientMoney);
-            }
 
             if (!TrySpendMoney(item.Price))
-            {
                 return CreatePurchaseFailure(item.Id, PurchaseFailureReason.InsufficientMoney);
-            }
 
             _data.AddOwnedEquipment(item.Id);
             bool persistenceSucceeded = Save();
@@ -186,6 +254,185 @@ public class PlayerProgressService : MonoBehaviour
         finally
         {
             _purchaseInProgress = false;
+        }
+    }
+
+    public UpgradePurchaseResult TryPurchaseEquipmentUpgrade(string _equipmentId)
+    {
+        if (_upgradeInProgress)
+        {
+            return CreateUpgradeFailure(
+                _equipmentId,
+                UpgradePurchaseFailureReason.OperationInProgress,
+                0,
+                true
+            );
+        }
+
+        _upgradeInProgress = true;
+
+        try
+        {
+            if (!EnsureLoaded() || _data == null)
+            {
+                return CreateUpgradeFailure(
+                    _equipmentId,
+                    UpgradePurchaseFailureReason.ProgressNotLoaded,
+                    0,
+                    false
+                );
+            }
+
+            if (_equipmentCatalog == null ||
+                !_equipmentCatalog.TryGetById(_equipmentId, out EquipmentItemDefinition item))
+            {
+                return CreateUpgradeFailure(
+                    _equipmentId,
+                    UpgradePurchaseFailureReason.InvalidItem,
+                    0,
+                    true
+                );
+            }
+
+            if (!item.HasValidConfiguration())
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InvalidItem,
+                    0,
+                    true
+                );
+            }
+
+            if (_runManager != null && (_runManager.CurrentState == RunState.Launching || _runManager.IsRunning))
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.OperationInProgress,
+                    0,
+                    true
+                );
+            }
+
+            if (!_data.OwnsEquipment(item.Id))
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.NotOwned,
+                    0,
+                    true
+                );
+            }
+
+            int maximumLevel = item.GetMaximumUpgradeLevel();
+            int previousLevel = Mathf.Clamp(_data.GetEquipmentLevel(item.Id), 0, maximumLevel);
+
+            if (previousLevel >= maximumLevel)
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.MaximumLevelReached,
+                    previousLevel,
+                    true
+                );
+            }
+
+            int newLevel = previousLevel + 1;
+
+            if (!item.TryGetUpgradePrice(newLevel, out long price))
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InvalidUpgradeConfiguration,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (price < 0)
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InvalidPrice,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (!item.HasValidUpgradeConfiguration())
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InvalidUpgradeConfiguration,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (!TryGetAttributes(
+                    item,
+                    newLevel,
+                    out DrillStats ignoredDrillStats,
+                    out float ignoredLauncherMultiplier))
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InvalidUpgradeConfiguration,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (_data.TotalMoney < price)
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InsufficientMoney,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (!_data.TrySetEquipmentLevel(item.Id, newLevel))
+            {
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InvalidUpgradeConfiguration,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (!_data.TrySpendMoney(price))
+            {
+                _data.TrySetEquipmentLevel(item.Id, previousLevel);
+                return CreateUpgradeFailure(
+                    item.Id,
+                    UpgradePurchaseFailureReason.InsufficientMoney,
+                    previousLevel,
+                    true
+                );
+            }
+
+            bool persistenceSucceeded = Save();
+            ProgressChanged?.Invoke();
+
+            return new UpgradePurchaseResult(
+                true,
+                persistenceSucceeded
+                    ? UpgradePurchaseFailureReason.None
+                    : UpgradePurchaseFailureReason.SaveFailed,
+                item.Id,
+                previousLevel,
+                newLevel,
+                price,
+                _data.TotalMoney,
+                persistenceSucceeded
+            );
+        }
+        finally
+        {
+            _upgradeInProgress = false;
         }
     }
 
@@ -220,6 +467,7 @@ public class PlayerProgressService : MonoBehaviour
             {
                 return CreateEquipFailure(item.Id, EquipFailureReason.InvalidItem);
             }
+
             if (!_data.OwnsEquipment(item.Id))
             {
                 return new EquipResult(
@@ -350,6 +598,7 @@ public class PlayerProgressService : MonoBehaviour
 
         _data = CreateDefaultData();
         EnsureEquipmentData();
+        NormalizeUpgradeData();
         _lastAppliedRunId = 0;
         _hasLoaded = true;
         Save();
@@ -370,6 +619,7 @@ public class PlayerProgressService : MonoBehaviour
         _data = CreateDefaultData();
         _hasLoaded = true;
         EnsureEquipmentData();
+        NormalizeUpgradeData();
 
         if (!File.Exists(SaveFilePath))
         {
@@ -400,11 +650,9 @@ public class PlayerProgressService : MonoBehaviour
 
             _data = loadedData;
             bool changed = _data.Normalize();
-
-            if (_data.SaveVersion == 1)
-                changed |= MigrateFromVersionOne();
-
+            changed |= MigrateToCurrentVersion();
             changed |= EnsureEquipmentData();
+            changed |= NormalizeUpgradeData();
 
             if (changed)
                 Save();
@@ -432,9 +680,27 @@ public class PlayerProgressService : MonoBehaviour
         }
     }
 
-    private bool MigrateFromVersionOne()
+    private bool MigrateToCurrentVersion()
     {
-        bool changed = _data.SetSaveVersion(CurrentSaveVersion);
+        bool changed = false;
+
+        while (_data.SaveVersion < CurrentSaveVersion)
+        {
+            if (_data.SaveVersion == 1)
+            {
+                changed |= _data.SetSaveVersion(2);
+                continue;
+            }
+
+            if (_data.SaveVersion == 2)
+            {
+                changed |= _data.SetSaveVersion(3);
+                continue;
+            }
+
+            return changed;
+        }
+
         return changed;
     }
 
@@ -471,6 +737,61 @@ public class PlayerProgressService : MonoBehaviour
         return changed;
     }
 
+    private bool NormalizeUpgradeData()
+    {
+        if (_data == null)
+            return false;
+
+        bool changed = _data.EnsureUpgradeCollection();
+        Dictionary<string, int> normalizedLevels = new Dictionary<string, int>();
+
+        for (int index = 0; index < _data.EquipmentUpgradeCount; index++)
+        {
+            EquipmentUpgradeProgress progress = _data.GetEquipmentUpgradeAt(index);
+
+            if (progress == null || string.IsNullOrWhiteSpace(progress.EquipmentId))
+            {
+                changed = true;
+                continue;
+            }
+
+            string equipmentId = progress.EquipmentId;
+            int normalizedLevel = Mathf.Max(0, progress.Level);
+
+            if (_equipmentCatalog != null &&
+                _equipmentCatalog.TryGetById(equipmentId, out EquipmentItemDefinition item))
+            {
+                normalizedLevel = Mathf.Clamp(
+                    normalizedLevel,
+                    0,
+                    item.GetMaximumUpgradeLevel()
+                );
+            }
+
+            if (normalizedLevel != progress.Level)
+                changed = true;
+
+            if (normalizedLevels.TryGetValue(equipmentId, out int existingLevel))
+            {
+                normalizedLevels[equipmentId] = Mathf.Max(existingLevel, normalizedLevel);
+                changed = true;
+                continue;
+            }
+
+            normalizedLevels.Add(equipmentId, normalizedLevel);
+        }
+
+        if (!changed)
+            return false;
+
+        _data.ClearEquipmentUpgrades();
+
+        foreach (KeyValuePair<string, int> entry in normalizedLevels)
+            _data.TrySetEquipmentLevel(entry.Key, entry.Value);
+
+        return true;
+    }
+
     private bool AddDefaultEquipment(EquipmentType _type)
     {
         if (!_equipmentCatalog.TryGetDefault(_type, out EquipmentItemDefinition item))
@@ -500,6 +821,33 @@ public class PlayerProgressService : MonoBehaviour
                _equipmentCatalog.TryGetById(_itemId, out EquipmentItemDefinition item) &&
                item.EquipmentType == _type &&
                item.HasValidConfiguration();
+    }
+
+    private bool TryGetCurrentAttributes(
+        EquipmentItemDefinition _item,
+        int _level,
+        out DrillStats _drillStats,
+        out float _launcherMultiplier)
+    {
+        return TryGetAttributes(_item, _level, out _drillStats, out _launcherMultiplier);
+    }
+
+    private bool TryGetAttributes(
+        EquipmentItemDefinition _item,
+        int _level,
+        out DrillStats _drillStats,
+        out float _launcherMultiplier)
+    {
+        _drillStats = default;
+        _launcherMultiplier = 0f;
+
+        if (_item.EquipmentType == EquipmentType.Drill)
+            return _item.TryGetDrillStats(_level, out _drillStats);
+
+        if (_item.EquipmentType == EquipmentType.Launcher)
+            return _item.TryGetLauncherForceMultiplier(_level, out _launcherMultiplier);
+
+        return false;
     }
 
     private bool TrySpendMoney(long _amount)
@@ -562,6 +910,24 @@ public class PlayerProgressService : MonoBehaviour
         );
     }
 
+    private UpgradePurchaseResult CreateUpgradeFailure(
+        string _equipmentId,
+        UpgradePurchaseFailureReason _reason,
+        int _previousLevel,
+        bool _persisted)
+    {
+        return new UpgradePurchaseResult(
+            false,
+            _reason,
+            _equipmentId,
+            _previousLevel,
+            _previousLevel,
+            0,
+            TotalMoney,
+            _persisted
+        );
+    }
+
     private EquipResult CreateEquipFailure(
         string _itemId,
         EquipFailureReason _reason)
@@ -592,6 +958,7 @@ public class PlayerProgressService : MonoBehaviour
 
         _data = CreateDefaultData();
         EnsureEquipmentData();
+        NormalizeUpgradeData();
         Save();
         ProgressChanged?.Invoke();
     }
@@ -661,7 +1028,17 @@ public class PlayerProgressService : MonoBehaviour
         Debug.LogError($"Player progress could not be loaded: {_exception.Message}", this);
     }
 
+#if UNITY_EDITOR
+    [ContextMenu("Development/Add Test Money")]
+    private void AddTestMoney()
+    {
+        if (!EnsureLoaded() || _data == null || !_data.TryAddMoney(1000))
+            return;
+
+        Save();
+        ProgressChanged?.Invoke();
+    }
+#endif
+
     #endregion
 }
-
-
