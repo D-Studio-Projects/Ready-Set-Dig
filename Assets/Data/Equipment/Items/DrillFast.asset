@@ -21,3 +21,18 @@ MonoBehaviour:
   _isDefault: 0
   _drillToolData: {fileID: 11400000, guid: 92ff388b9e6bdca42a65d010d5f4c8e9, type: 2}
   _launchForceMultiplier: 1
+  _maximumUpgradeLevel: 3
+  _drillUpgradeLevels:
+  - _price: 100
+    _digDamage: 1
+    _energyConsumption: 7.5
+    _digSpeed: 98
+  - _price: 200
+    _digDamage: 1.05
+    _energyConsumption: 7
+    _digSpeed: 106
+  - _price: 400
+    _digDamage: 1.1
+    _energyConsumption: 6.5
+    _digSpeed: 114
+  _launcherUpgradeLevels: []

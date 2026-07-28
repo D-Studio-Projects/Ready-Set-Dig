@@ -21,3 +21,12 @@ MonoBehaviour:
   _isDefault: 1
   _drillToolData: {fileID: 0}
   _launchForceMultiplier: 1
+  _maximumUpgradeLevel: 3
+  _drillUpgradeLevels: []
+  _launcherUpgradeLevels:
+  - _price: 50
+    _launchForceMultiplier: 1.05
+  - _price: 100
+    _launchForceMultiplier: 1.1
+  - _price: 200
+    _launchForceMultiplier: 1.15
