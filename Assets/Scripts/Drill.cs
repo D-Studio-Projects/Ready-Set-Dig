@@ -16,15 +16,23 @@ public class Drill : MonoBehaviour, ITool
     private PlayerEnergy _playerEnergy;
 
     [SerializeField]
+    private Collider2D _playerCollider;
+
+    [SerializeField]
     private ToolData _toolData;
 
     [Header("Dig")]
     [SerializeField]
     private float _baseRadius = .4f;
 
+    [SerializeField]
+    private float _tunnelPadding = .1f;
+
     private ToolData _activeToolData;
     private DrillStats _activeDrillStats;
     private bool _hasActiveStats;
+    private bool _hasLastDigPosition;
+    private Vector2 _lastDigPosition;
     private float _digTimer;
 
     #endregion
@@ -45,6 +53,9 @@ public class Drill : MonoBehaviour, ITool
 
     private void Awake()
     {
+        if (_playerCollider == null)
+            _playerCollider = GetComponentInChildren<Collider2D>();
+
         ResetEquipment();
     }
 
@@ -53,7 +64,14 @@ public class Drill : MonoBehaviour, ITool
         if (!CanUse())
         {
             _digTimer = 0f;
+            _hasLastDigPosition = false;
             return;
+        }
+
+        if (!_hasLastDigPosition)
+        {
+            _lastDigPosition = transform.position;
+            _hasLastDigPosition = true;
         }
 
         _digTimer += Time.deltaTime;
@@ -64,7 +82,9 @@ public class Drill : MonoBehaviour, ITool
 
         float elapsedSinceDig = _digTimer;
         _digTimer = 0f;
-        DigResult result = PerformDig();
+        Vector2 currentPosition = transform.position;
+        DigResult result = PerformDigPath(_lastDigPosition, currentPosition);
+        _lastDigPosition = currentPosition;
 
         if (!result.HasChanges)
             return;
@@ -86,6 +106,7 @@ public class Drill : MonoBehaviour, ITool
         _activeDrillStats = DrillStats.FromToolData(_activeToolData);
         _hasActiveStats = _activeDrillStats.IsValid();
         _digTimer = 0f;
+        _hasLastDigPosition = false;
     }
 
     public void ApplyEquipment(DrillStats _stats)
@@ -100,6 +121,7 @@ public class Drill : MonoBehaviour, ITool
         _activeDrillStats = _stats;
         _hasActiveStats = true;
         _digTimer = 0f;
+        _hasLastDigPosition = false;
     }
 
     public void ResetEquipment()
@@ -108,6 +130,7 @@ public class Drill : MonoBehaviour, ITool
         _activeDrillStats = DrillStats.FromToolData(_toolData);
         _hasActiveStats = _activeDrillStats.IsValid();
         _digTimer = 0f;
+        _hasLastDigPosition = false;
     }
 
     public bool CanUse()
@@ -137,12 +160,29 @@ public class Drill : MonoBehaviour, ITool
 
     private DigResult PerformDig()
     {
-        return _terrain.Dig(transform.position, GetDigRadius());
+        return _terrain.Dig(transform.position, GetTunnelRadius());
+    }
+
+    private DigResult PerformDigPath(Vector2 _startPosition, Vector2 _endPosition)
+    {
+        return _terrain.DigPath(_startPosition, _endPosition, GetTunnelRadius());
     }
 
     private float GetDigRadius()
     {
         return _baseRadius * Mathf.Max(0f, _activeDrillStats.DigDamage);
+    }
+
+    private float GetTunnelRadius()
+    {
+        float playerRadius = _playerCollider == null
+            ? 0f
+            : Mathf.Max(
+                _playerCollider.bounds.extents.x,
+                _playerCollider.bounds.extents.y
+            ) + Mathf.Max(0f, _tunnelPadding);
+
+        return Mathf.Max(GetDigRadius(), playerRadius);
     }
 
     private float GetDigInterval()
