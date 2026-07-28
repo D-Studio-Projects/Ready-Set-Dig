@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 public class TerrainChunk : MonoBehaviour
@@ -121,15 +121,15 @@ public class TerrainChunk : MonoBehaviour
                _y < _height;
     }
 
-    public Terrain.TerrainType GetCell(int _x, int _y)
+    public TerrainBase.TerrainType GetCell(int _x, int _y)
     {
         if (!InsideMap(_x, _y))
-            return Terrain.TerrainType.Air;
+            return TerrainBase.TerrainType.Air;
 
-        return (Terrain.TerrainType)_map[_x, _y];
+        return (TerrainBase.TerrainType)_map[_x, _y];
     }
 
-    public void SetCell(int _x, int _y, Terrain.TerrainType _value)
+    public void SetCell(int _x, int _y, TerrainBase.TerrainType _value)
     {
         if (!InsideMap(_x, _y))
             return;
@@ -185,24 +185,24 @@ public class TerrainChunk : MonoBehaviour
                 int x = center.x + offsetX;
                 int y = center.y + offsetY;
 
-                if (!InsideMap(x, y) || _map[x, y] == (byte)Terrain.TerrainType.Air)
+                if (!InsideMap(x, y) || _map[x, y] == (byte)TerrainBase.TerrainType.Air)
                     continue;
 
-                Terrain.TerrainType terrainType = (Terrain.TerrainType)_map[x, y];
-                _map[x, y] = (byte)Terrain.TerrainType.Air;
+                TerrainBase.TerrainType terrainType = (TerrainBase.TerrainType)_map[x, y];
+                _map[x, y] = (byte)TerrainBase.TerrainType.Air;
 
                 switch (terrainType)
                 {
-                    case Terrain.TerrainType.Dirt:
+                    case TerrainBase.TerrainType.Dirt:
                         dirtCells++;
                         break;
-                    case Terrain.TerrainType.Stone:
+                    case TerrainBase.TerrainType.Stone:
                         stoneCells++;
                         break;
-                    case Terrain.TerrainType.Iron:
+                    case TerrainBase.TerrainType.Iron:
                         ironCells++;
                         break;
-                    case Terrain.TerrainType.Gold:
+                    case TerrainBase.TerrainType.Gold:
                         goldCells++;
                         break;
                 }
@@ -247,8 +247,8 @@ public class TerrainChunk : MonoBehaviour
             for (int y = 0; y < _height; y++)
             {
                 int globalDepth = GetGlobalDepth(y);
-                Terrain.TerrainType terrainType = _depthProfile == null
-                    ? Terrain.TerrainType.Dirt
+                TerrainBase.TerrainType terrainType = _depthProfile == null
+                    ? TerrainBase.TerrainType.Dirt
                     : _depthProfile.GetTerrainType(x, globalDepth, _seed);
 
                 _map[x, y] = (byte)terrainType;

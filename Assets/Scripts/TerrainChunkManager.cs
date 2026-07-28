@@ -165,6 +165,13 @@ public class TerrainChunkManager : MonoBehaviour
 
     public void ResetTerrain()
     {
+        ResetTerrain(_seed);
+    }
+
+    public void ResetTerrain(int _newSeed)
+    {
+        _seed = _newSeed;
+
         if (!_isInitialized)
             return;
 

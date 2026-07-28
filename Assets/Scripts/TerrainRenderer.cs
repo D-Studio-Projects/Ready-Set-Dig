@@ -1,5 +1,5 @@
-using UnityEngine;
-using static Terrain;
+﻿using UnityEngine;
+using static TerrainBase;
 
 public class TerrainRenderer : MonoBehaviour
 {
@@ -7,7 +7,7 @@ public class TerrainRenderer : MonoBehaviour
 
     [Header("References")]
     [SerializeField]
-    private Terrain _terrain;
+    private TerrainBase _terrain;
 
     [SerializeField]
     private SpriteRenderer _targetRenderer;
@@ -59,7 +59,7 @@ public class TerrainRenderer : MonoBehaviour
     {
         if (_terrain == null)
         {
-            Debug.LogError("TerrainRenderer needs a Terrain reference.", this);
+            Debug.LogError("TerrainRenderer needs a TerrainBase reference.", this);
             enabled = false;
             return;
         }
@@ -157,3 +157,4 @@ public class TerrainRenderer : MonoBehaviour
 
     #endregion
 }
+

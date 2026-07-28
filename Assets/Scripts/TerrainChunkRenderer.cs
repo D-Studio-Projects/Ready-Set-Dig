@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class TerrainChunkRenderer : MonoBehaviour
 {
@@ -201,19 +201,19 @@ public class TerrainChunkRenderer : MonoBehaviour
         }
     }
 
-    private Color GetColor(Terrain.TerrainType _cell)
+    private Color GetColor(TerrainBase.TerrainType _cell)
     {
         switch (_cell)
         {
-            case Terrain.TerrainType.Air:
+            case TerrainBase.TerrainType.Air:
                 return Color.clear;
-            case Terrain.TerrainType.Dirt:
+            case TerrainBase.TerrainType.Dirt:
                 return _dirtColor;
-            case Terrain.TerrainType.Stone:
+            case TerrainBase.TerrainType.Stone:
                 return _stoneColor;
-            case Terrain.TerrainType.Iron:
+            case TerrainBase.TerrainType.Iron:
                 return _ironColor;
-            case Terrain.TerrainType.Gold:
+            case TerrainBase.TerrainType.Gold:
                 return _goldColor;
             default:
                 return Color.magenta;

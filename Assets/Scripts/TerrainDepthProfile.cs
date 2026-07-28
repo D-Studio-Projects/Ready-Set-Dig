@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 [Serializable]
@@ -10,7 +10,7 @@ public class TerrainDepthLayer
     private string _name = "Stone";
 
     [SerializeField]
-    private Terrain.TerrainType _terrainType = Terrain.TerrainType.Stone;
+    private TerrainBase.TerrainType _terrainType = TerrainBase.TerrainType.Stone;
 
     [SerializeField]
     private int _startDepth;
@@ -35,7 +35,7 @@ public class TerrainDepthLayer
 
     public string Name => _name;
 
-    public Terrain.TerrainType TerrainType => _terrainType;
+    public TerrainBase.TerrainType TerrainType => _terrainType;
 
     public int StartDepth => _startDepth;
 
@@ -61,7 +61,7 @@ public class TerrainDepthLayer
 
     public bool IsAvailableAtDepth(int _depth)
     {
-        return _depth >= _startDepth && _terrainType != Terrain.TerrainType.Air;
+        return _depth >= _startDepth && _terrainType != TerrainBase.TerrainType.Air;
     }
 
     public float GetDensityAtDepth(int _depth)
@@ -101,10 +101,10 @@ public class TerrainDepthProfile : ScriptableObject
 
     #region Public Methods
 
-    public Terrain.TerrainType GetTerrainType(int _globalX, int _depth, int _seed)
+    public TerrainBase.TerrainType GetTerrainType(int _globalX, int _depth, int _seed)
     {
         if (_layers == null)
-            return Terrain.TerrainType.Dirt;
+            return TerrainBase.TerrainType.Dirt;
 
         for (int index = _layers.Length - 1; index >= 0; index--)
         {
@@ -124,7 +124,7 @@ public class TerrainDepthProfile : ScriptableObject
                 return layer.TerrainType;
         }
 
-        return Terrain.TerrainType.Dirt;
+        return TerrainBase.TerrainType.Dirt;
     }
 
     #endregion

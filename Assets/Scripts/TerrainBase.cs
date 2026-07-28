@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using UnityEngine;
 
-public class Terrain : MonoBehaviour
+public class TerrainBase : MonoBehaviour
 {
     public enum TerrainType : byte
     {
@@ -135,3 +135,4 @@ public class Terrain : MonoBehaviour
         return changedCells;
     }
 }
+
