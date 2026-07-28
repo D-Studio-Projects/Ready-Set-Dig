@@ -86,17 +86,17 @@ public class PlayerEquipmentController : MonoBehaviour
                 EquipmentType.Launcher,
                 out EquipmentItemDefinition item,
                 out int level) &&
-            item.TryGetLauncherForceMultiplier(level, out float multiplier))
+            item.TryGetLauncherData(level, out LauncherData launcherData))
         {
-            _launchController.ApplyEquipment(multiplier);
+            _launchController.ApplyEquipment(launcherData, level);
             return;
         }
 
         if (_equipmentCatalog != null &&
             _equipmentCatalog.TryGetDefault(EquipmentType.Launcher, out EquipmentItemDefinition defaultItem) &&
-            defaultItem.TryGetLauncherForceMultiplier(0, out float defaultMultiplier))
+            defaultItem.TryGetLauncherData(0, out LauncherData defaultLauncherData))
         {
-            _launchController.ApplyEquipment(defaultMultiplier);
+            _launchController.ApplyEquipment(defaultLauncherData, 0);
             return;
         }
 

@@ -39,7 +39,7 @@ public class EquipmentItemDefinition : ScriptableObject
 
     [Header("Launcher Gameplay")]
     [SerializeField]
-    private float _launchForceMultiplier = 1f;
+    private LauncherData _launcherData;
 
     [Header("Upgrades")]
     [SerializeField]
@@ -71,7 +71,10 @@ public class EquipmentItemDefinition : ScriptableObject
 
     public ToolData DrillToolData => _drillToolData;
 
-    public float LaunchForceMultiplier => _launchForceMultiplier;
+    public LauncherData LauncherData => _launcherData;
+
+    public float LaunchForceMultiplier =>
+        _launcherData == null ? 0f : _launcherData.GetForceMultiplier(0);
 
     public int MaximumUpgradeLevel => Mathf.Max(0, _maximumUpgradeLevel);
 
@@ -103,7 +106,9 @@ public class EquipmentItemDefinition : ScriptableObject
         if (_equipmentType != EquipmentType.Launcher)
             return false;
 
-        return IsValidMultiplier(_launchForceMultiplier);
+        return _launcherData != null &&
+               _launcherData.HasValidConfiguration() &&
+               _launcherData.Id == _id;
     }
 
     public bool HasValidUpgradeConfiguration()
@@ -154,26 +159,38 @@ public class EquipmentItemDefinition : ScriptableObject
 
     public bool TryGetLauncherForceMultiplier(int _level, out float _multiplier)
     {
-        _multiplier = _launchForceMultiplier;
+        _multiplier = 0f;
 
-        if (_equipmentType != EquipmentType.Launcher || _level < 0 || _level > MaximumUpgradeLevel)
+        if (!TryGetLauncherData(_level, out LauncherData launcherData))
             return false;
 
+        _multiplier = launcherData.GetForceMultiplier(_level);
+        return IsValidMultiplier(_multiplier);
+    }
+
+    public bool TryGetLauncherData(int _level, out LauncherData _launcher)
+    {
+        _launcher = _launcherData;
+
+        if (_equipmentType != EquipmentType.Launcher ||
+            _level < 0 ||
+            _level > MaximumUpgradeLevel ||
+            _launcher == null ||
+            !_launcher.HasValidConfiguration() ||
+            _launcher.Id != _id)
+        {
+            return false;
+        }
+
         if (_level == 0)
-            return IsValidMultiplier(_multiplier);
+            return true;
 
         int index = _level - 1;
 
-        if (_launcherUpgradeLevels == null || index >= _launcherUpgradeLevels.Count)
-            return false;
-
-        LauncherUpgradeLevel upgrade = _launcherUpgradeLevels[index];
-
-        if (upgrade == null || !upgrade.HasValidConfiguration())
-            return false;
-
-        _multiplier = upgrade.LaunchForceMultiplier;
-        return IsValidMultiplier(_multiplier);
+        return _launcherUpgradeLevels != null &&
+               index < _launcherUpgradeLevels.Count &&
+               _launcherUpgradeLevels[index] != null &&
+               _launcherUpgradeLevels[index].HasValidConfiguration();
     }
 
     public bool TryGetUpgradePrice(int _level, out long _price)
