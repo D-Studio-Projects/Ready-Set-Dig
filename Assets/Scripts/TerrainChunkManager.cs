@@ -39,7 +39,22 @@ public class TerrainChunkManager : MonoBehaviour
     private int _pixelsPerUnit = 32;
 
     [SerializeField]
+    private bool _fitWidthToCamera = true;
+
+    [SerializeField]
+    private float _horizontalMargin = 2f;
+
+    [SerializeField]
+    private float _horizontalCoverageBuffer = 4f;
+
+    [SerializeField]
+    private bool _followPlayerPathHorizontally = true;
+
+    [SerializeField]
     private int _chunksAhead = 6;
+
+    [SerializeField]
+    private float _cameraPreloadMargin = 4f;
 
     [SerializeField]
     private float _unloadMargin = 4f;
@@ -62,7 +77,7 @@ public class TerrainChunkManager : MonoBehaviour
     private float _surfaceWorldY;
 
     [SerializeField]
-    private float _surfaceOffset;
+    private float _surfaceDistanceBelowPlayer = 4f;
 
     [Header("Seed")]
     [SerializeField]
@@ -105,9 +120,9 @@ public class TerrainChunkManager : MonoBehaviour
             return;
         }
 
-        _chunkWorldHeight = _chunkHeight / (float)_pixelsPerUnit;
+        ConfigureChunkDimensions();
         _worldSurfaceY = _usePlayerPositionAsSurface
-            ? _player.position.y + _surfaceOffset
+            ? _player.position.y - Mathf.Max(.5f, _surfaceDistanceBelowPlayer)
             : _surfaceWorldY;
         _worldCenterX = _player.position.x;
         CreateChunkPool();
@@ -124,8 +139,9 @@ public class TerrainChunkManager : MonoBehaviour
         if (_runManager != null && _runManager.IsFinished)
             return;
 
-        EnsureChunksAroundPlayer();
         RemoveChunksAboveCamera();
+        EnsureChunksAroundPlayer();
+        AlignUpcomingChunksWithPlayer();
     }
 
     private void OnDestroy()
@@ -164,6 +180,29 @@ public class TerrainChunkManager : MonoBehaviour
         return result;
     }
 
+    public DigResult DigPath(Vector2 _startWorldPosition, Vector2 _endWorldPosition, float _radius)
+    {
+        float radius = Mathf.Max(0f, _radius);
+        float distance = Vector2.Distance(_startWorldPosition, _endWorldPosition);
+        float minimumStep = 1f / Mathf.Max(1, _pixelsPerUnit);
+        float stepDistance = Mathf.Max(minimumStep, radius * .5f);
+        int stepCount = Mathf.Max(1, Mathf.CeilToInt(distance / stepDistance));
+        DigResult result = new DigResult(_endWorldPosition, radius, 0, 0, 0, 0);
+
+        for (int step = 0; step <= stepCount; step++)
+        {
+            float progress = step / (float)stepCount;
+            Vector2 samplePosition = Vector2.Lerp(
+                _startWorldPosition,
+                _endWorldPosition,
+                progress
+            );
+            result = result.Add(Dig(samplePosition, radius));
+        }
+
+        return result;
+    }
+
     public bool TryGetChunk(int _chunkIndex, out TerrainChunk _chunk)
     {
         return _activeChunks.TryGetValue(_chunkIndex, out _chunk);
@@ -183,7 +222,9 @@ public class TerrainChunkManager : MonoBehaviour
 
         ReleaseAllActiveChunks();
         _hasLoggedPoolLimit = false;
+        _worldCenterX = _player.position.x;
         EnsureChunksAroundPlayer();
+        AlignUpcomingChunksWithPlayer();
     }
 
     #endregion
@@ -226,7 +267,11 @@ public class TerrainChunkManager : MonoBehaviour
         }
 
         _chunksAhead = Mathf.Max(0, _chunksAhead);
+        _cameraPreloadMargin = Mathf.Max(0f, _cameraPreloadMargin);
         _unloadMargin = Mathf.Max(0f, _unloadMargin);
+        _horizontalMargin = Mathf.Max(0f, _horizontalMargin);
+        _horizontalCoverageBuffer = Mathf.Max(0f, _horizontalCoverageBuffer);
+        _surfaceDistanceBelowPlayer = Mathf.Max(.5f, _surfaceDistanceBelowPlayer);
         _maxPoolSize = Mathf.Max(1, _maxPoolSize);
         _initialPoolCapacity = Mathf.Clamp(_initialPoolCapacity, 0, _maxPoolSize);
 
@@ -239,6 +284,36 @@ public class TerrainChunkManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void ConfigureChunkDimensions()
+    {
+        if (_fitWidthToCamera && _camera.orthographic)
+        {
+            float visibleWorldWidth = _camera.orthographicSize * 2f * _camera.aspect;
+            float sideCoverage = _horizontalMargin + _horizontalCoverageBuffer;
+            float requiredWorldWidth = visibleWorldWidth + sideCoverage * 2f;
+            int requiredPixelWidth = Mathf.CeilToInt(requiredWorldWidth * _pixelsPerUnit);
+            _chunkWidth = Mathf.Max(_chunkWidth, requiredPixelWidth);
+        }
+
+        _chunkWorldHeight = _chunkHeight / (float)_pixelsPerUnit;
+
+        if (_camera.orthographic)
+        {
+            float retainedWorldHeight =
+                _camera.orthographicSize * 2f +
+                _cameraPreloadMargin +
+                _unloadMargin;
+            int minimumPoolSize =
+                Mathf.CeilToInt(retainedWorldHeight / _chunkWorldHeight) + 2;
+            _maxPoolSize = Mathf.Max(_maxPoolSize, minimumPoolSize);
+            _initialPoolCapacity = Mathf.Clamp(
+                Mathf.Max(_initialPoolCapacity, minimumPoolSize),
+                0,
+                _maxPoolSize
+            );
+        }
     }
 
     private void CreateChunkPool()
@@ -287,9 +362,9 @@ public class TerrainChunkManager : MonoBehaviour
         if (_chunk == null)
             return;
 
+        _chunk.gameObject.SetActive(false);
         _chunk.ResetForPool();
         _chunk.transform.SetParent(_poolContainer, false);
-        _chunk.gameObject.SetActive(false);
     }
 
     private void OnDestroyChunk(TerrainChunk _chunk)
@@ -301,8 +376,14 @@ public class TerrainChunkManager : MonoBehaviour
     private void EnsureChunksAroundPlayer()
     {
         int playerChunkIndex = GetChunkIndex(_player.position.y);
+        float cameraBottom = _camera.transform.position.y - _camera.orthographicSize;
+        int cameraBottomChunkIndex = GetChunkIndex(cameraBottom - _cameraPreloadMargin);
+        int lastRequiredChunkIndex = Mathf.Max(
+            playerChunkIndex + _chunksAhead,
+            cameraBottomChunkIndex
+        );
 
-        for (int chunkIndex = playerChunkIndex; chunkIndex <= playerChunkIndex + _chunksAhead; chunkIndex++)
+        for (int chunkIndex = playerChunkIndex; chunkIndex <= lastRequiredChunkIndex; chunkIndex++)
             EnsureChunk(chunkIndex);
     }
 
@@ -324,11 +405,12 @@ public class TerrainChunkManager : MonoBehaviour
 
         chunk.transform.SetParent(_chunksRoot, false);
         chunk.transform.position = new Vector3(
-            _worldCenterX,
+            GetNewChunkCenterX(),
             GetChunkWorldY(_chunkIndex),
             _chunksRoot.position.z
         );
         chunk.name = $"TerrainChunk_{_chunkIndex}";
+        chunk.gameObject.SetActive(true);
         chunk.Initialize(
             _chunkIndex,
             _chunkWidth,
@@ -338,8 +420,30 @@ public class TerrainChunkManager : MonoBehaviour
             _depthProfile
         );
         _activeChunks.Add(_chunkIndex, chunk);
-        chunk.gameObject.SetActive(true);
         return chunk;
+    }
+
+    private void AlignUpcomingChunksWithPlayer()
+    {
+        if (!_followPlayerPathHorizontally || _player == null)
+            return;
+
+        int playerChunkIndex = GetChunkIndex(_player.position.y);
+        bool playerIsAboveSurface = _player.position.y > _worldSurfaceY;
+
+        foreach (KeyValuePair<int, TerrainChunk> pair in _activeChunks)
+        {
+            bool isUpcomingChunk = playerIsAboveSurface
+                ? pair.Key >= playerChunkIndex
+                : pair.Key > playerChunkIndex;
+
+            if (!isUpcomingChunk || pair.Value == null)
+                continue;
+
+            Vector3 chunkPosition = pair.Value.transform.position;
+            chunkPosition.x = _player.position.x;
+            pair.Value.transform.position = chunkPosition;
+        }
     }
 
     private void RemoveChunksAboveCamera()
@@ -416,6 +520,14 @@ public class TerrainChunkManager : MonoBehaviour
     private float GetChunkWorldY(int _chunkIndex)
     {
         return _worldSurfaceY - (_chunkIndex + .5f) * _chunkWorldHeight;
+    }
+
+    private float GetNewChunkCenterX()
+    {
+        if (_followPlayerPathHorizontally && _player != null)
+            return _player.position.x;
+
+        return _worldCenterX;
     }
 
     #endregion
