@@ -13,11 +13,12 @@ GameObject:
   - component: {fileID: 2417374928435169097}
   - component: {fileID: 6172950678044669275}
   - component: {fileID: 6699732051376489492}
+  - component: {fileID: 7700000000000000001}
   - component: {fileID: 6124326674597133376}
   - component: {fileID: 1940717353423642507}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -154,7 +155,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _runManager: {fileID: 0}
-  _playerMovement: {fileID: 0}
+  _fallbackLauncherData: {fileID: 11400000, guid: d9849d9c163f4712b2f9369109087f69, type: 2}
+  _minigameBehaviors:
+  - {fileID: 7700000000000000001}
+--- !u!114 &7700000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5079589179052376128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c25382e8f1d84dd2abb4362ef2c037b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
   _chargeBar: {fileID: 0}
   _chargeSpeed: 2
   _hideChargeBarOnLaunch: 1
@@ -170,13 +185,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3b26044d7bc4c04a80b88a2810a14a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _maxEnergy: 5
+  _maxEnergy: 100
   _digDrainPerSecond: 8
   _defaultObstacleMultiplier: 2
   _obstacleTag: Obstacle
   _obstacleLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
 --- !u!114 &1940717353423642507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -298,7 +313,7 @@ MonoBehaviour:
   _runManager: {fileID: 0}
   _terrain: {fileID: 0}
   _playerEnergy: {fileID: 6124326674597133376}
-  _playerCollider: {fileID: 0}
+  _playerCollider: {fileID: 3537321846034889236}
   _toolData: {fileID: 11400000, guid: 23c42c27a9454c31b6be8e2b2b98db1e, type: 2}
   _baseRadius: 0.1
   _tunnelPadding: 0.1
