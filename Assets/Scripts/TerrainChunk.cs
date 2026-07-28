@@ -19,6 +19,9 @@ public class TerrainChunk : MonoBehaviour
     [SerializeField]
     private BoxCollider2D _groundCollider;
 
+    [SerializeField]
+    private TerrainChunkRenderer _chunkRenderer;
+
     private byte[,] _map;
     private TerrainDepthProfile _depthProfile;
     private int _chunkIndex;
@@ -61,6 +64,11 @@ public class TerrainChunk : MonoBehaviour
 
     #region Unity Methods
 
+    private void Awake()
+    {
+        CacheRenderer();
+    }
+
     #endregion
 
     #region Public Methods
@@ -83,6 +91,7 @@ public class TerrainChunk : MonoBehaviour
         _isInitialized = false;
         _isInPool = false;
         _generation++;
+        CacheRenderer();
         EnsureMap();
 
         GenerateTerrain();
@@ -90,6 +99,9 @@ public class TerrainChunk : MonoBehaviour
 
         _isInitialized = true;
         Initialized?.Invoke();
+
+        if (_chunkRenderer != null)
+            _chunkRenderer.RefreshChunk();
     }
 
     public void MarkTakenFromPool()
@@ -138,7 +150,7 @@ public class TerrainChunk : MonoBehaviour
             return;
 
         _map[_x, _y] = (byte)_value;
-        CellsChanged?.Invoke(new RectInt(_x, _y, 1, 1));
+        NotifyCellsChanged(new RectInt(_x, _y, 1, 1));
     }
 
     public Vector2Int WorldToCell(Vector2 _worldPosition)
@@ -225,7 +237,7 @@ public class TerrainChunk : MonoBehaviour
 
         if (result.HasChanges)
         {
-            CellsChanged?.Invoke(new RectInt(
+            NotifyCellsChanged(new RectInt(
                 minX,
                 minY,
                 maxX - minX + 1,
@@ -239,6 +251,20 @@ public class TerrainChunk : MonoBehaviour
     #endregion
 
     #region Private Methods
+
+    private void CacheRenderer()
+    {
+        if (_chunkRenderer == null)
+            _chunkRenderer = GetComponentInChildren<TerrainChunkRenderer>(true);
+    }
+
+    private void NotifyCellsChanged(RectInt _dirtyRect)
+    {
+        CellsChanged?.Invoke(_dirtyRect);
+
+        if (_chunkRenderer != null)
+            _chunkRenderer.RedrawChangedCells(_dirtyRect);
+    }
 
     private void GenerateTerrain()
     {

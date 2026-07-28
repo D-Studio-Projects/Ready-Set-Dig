@@ -11,9 +11,15 @@ public class TerrainChunkRenderer : MonoBehaviour
     [SerializeField]
     private SpriteRenderer _targetRenderer;
 
+    [SerializeField]
+    private SpriteRenderer _backgroundRenderer;
+
     [Header("Colors")]
     [SerializeField]
-    private Color _dirtColor = new Color(.35f, .22f, .12f);
+    private Color _dirtColor = new Color(.55f, .34f, .17f);
+
+    [SerializeField]
+    private Color _backgroundColor = new Color(.18f, .10f, .05f);
 
     [SerializeField]
     private Color _stoneColor = Color.gray;
@@ -26,6 +32,8 @@ public class TerrainChunkRenderer : MonoBehaviour
 
     private Texture2D _texture;
     private Sprite _sprite;
+    private Texture2D _backgroundTexture;
+    private Sprite _backgroundSprite;
     private int _renderedGeneration = -1;
 
     #endregion
@@ -40,27 +48,21 @@ public class TerrainChunkRenderer : MonoBehaviour
 
     #region Unity Methods
 
-    private void OnEnable()
+    private void Awake()
     {
-        if (_chunk == null)
-            return;
-
-        _chunk.CellsChanged += DrawDirtyRect;
-        _chunk.Initialized += HandleChunkInitialized;
-        Refresh();
+        CacheReferences();
     }
 
-    private void OnDisable()
+    private void OnEnable()
     {
-        if (_chunk == null)
-            return;
-
-        _chunk.CellsChanged -= DrawDirtyRect;
-        _chunk.Initialized -= HandleChunkInitialized;
+        CacheReferences();
+        RefreshChunk();
     }
 
     private void Start()
     {
+        CacheReferences();
+
         if (_chunk == null)
         {
             Debug.LogError("TerrainChunkRenderer needs a TerrainChunk reference.", this);
@@ -75,7 +77,7 @@ public class TerrainChunkRenderer : MonoBehaviour
             return;
         }
 
-        Refresh();
+        RefreshChunk();
     }
 
     private void OnDestroy()
@@ -83,28 +85,30 @@ public class TerrainChunkRenderer : MonoBehaviour
         if (_targetRenderer != null)
             _targetRenderer.sprite = null;
 
+        if (_backgroundRenderer != null)
+            _backgroundRenderer.sprite = null;
+
         if (_sprite != null)
             Destroy(_sprite);
 
         if (_texture != null)
             Destroy(_texture);
+
+        if (_backgroundSprite != null)
+            Destroy(_backgroundSprite);
+
+        if (_backgroundTexture != null)
+            Destroy(_backgroundTexture);
     }
 
     #endregion
 
     #region Public Methods
 
-    #endregion
-
-    #region Private Methods
-
-    private void HandleChunkInitialized()
+    public void RefreshChunk()
     {
-        Refresh();
-    }
+        CacheReferences();
 
-    private void Refresh()
-    {
         if (_chunk == null ||
             _targetRenderer == null ||
             !_chunk.IsInitialized)
@@ -113,7 +117,11 @@ public class TerrainChunkRenderer : MonoBehaviour
         }
 
         EnsureRendererResources();
+        EnsureBackgroundRenderer();
         _targetRenderer.sprite = _sprite;
+        _backgroundRenderer.sprite = _backgroundSprite;
+        _targetRenderer.enabled = true;
+        _backgroundRenderer.enabled = true;
 
         if (_renderedGeneration == _chunk.Generation)
             return;
@@ -122,20 +130,67 @@ public class TerrainChunkRenderer : MonoBehaviour
         _renderedGeneration = _chunk.Generation;
     }
 
+    public void RedrawChangedCells(RectInt _dirtyRect)
+    {
+        if (_chunk == null || !_chunk.IsInitialized)
+            return;
+
+        if (_texture == null || _renderedGeneration != _chunk.Generation)
+        {
+            _renderedGeneration = -1;
+            RefreshChunk();
+            return;
+        }
+
+        RectInt clampedRect = ClampToChunk(_dirtyRect);
+
+        if (clampedRect.width <= 0 || clampedRect.height <= 0)
+            return;
+
+        DrawCells(clampedRect);
+        _texture.Apply(false);
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private void CacheReferences()
+    {
+        if (_chunk == null)
+            _chunk = GetComponentInParent<TerrainChunk>();
+
+        if (_targetRenderer == null)
+            _targetRenderer = GetComponent<SpriteRenderer>();
+    }
+
     private void EnsureRendererResources()
     {
+        EnsureBackgroundRenderer();
+
         if (_texture != null &&
             _texture.width == _chunk.Width &&
-            _texture.height == _chunk.Height)
+            _texture.height == _chunk.Height &&
+            _backgroundTexture != null &&
+            _backgroundTexture.width == _chunk.Width &&
+            _backgroundTexture.height == _chunk.Height)
         {
             return;
         }
+
+        EnsureBackgroundRenderer();
 
         if (_sprite != null)
             Destroy(_sprite);
 
         if (_texture != null)
             Destroy(_texture);
+
+        if (_backgroundSprite != null)
+            Destroy(_backgroundSprite);
+
+        if (_backgroundTexture != null)
+            Destroy(_backgroundTexture);
 
         _texture = new Texture2D(
             _chunk.Width,
@@ -154,31 +209,50 @@ public class TerrainChunkRenderer : MonoBehaviour
             new Vector2(.5f, .5f),
             _chunk.PixelsPerUnit
         );
+
+        _backgroundTexture = new Texture2D(
+            _chunk.Width,
+            _chunk.Height,
+            TextureFormat.RGBA32,
+            false
+        )
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp
+        };
+
+        Color[] backgroundPixels = new Color[_chunk.Width * _chunk.Height];
+
+        for (int index = 0; index < backgroundPixels.Length; index++)
+            backgroundPixels[index] = _backgroundColor;
+
+        _backgroundTexture.SetPixels(backgroundPixels);
+        _backgroundTexture.Apply(false);
+        _backgroundSprite = Sprite.Create(
+            _backgroundTexture,
+            new Rect(0f, 0f, _chunk.Width, _chunk.Height),
+            new Vector2(.5f, .5f),
+            _chunk.PixelsPerUnit
+        );
+    }
+
+    private void EnsureBackgroundRenderer()
+    {
+        if (_backgroundRenderer == null)
+        {
+            GameObject backgroundObject = new GameObject("TerrainBackground");
+            backgroundObject.transform.SetParent(transform, false);
+            _backgroundRenderer = backgroundObject.AddComponent<SpriteRenderer>();
+        }
+
+        _backgroundRenderer.sharedMaterial = _targetRenderer.sharedMaterial;
+        _backgroundRenderer.sortingLayerID = _targetRenderer.sortingLayerID;
+        _backgroundRenderer.sortingOrder = _targetRenderer.sortingOrder - 1;
     }
 
     private void DrawEntireMap()
     {
         DrawCells(new RectInt(0, 0, _chunk.Width, _chunk.Height));
-        _texture.Apply(false);
-    }
-
-    private void DrawDirtyRect(RectInt _dirtyRect)
-    {
-        if (_texture == null)
-            return;
-
-        if (_renderedGeneration != _chunk.Generation)
-        {
-            Refresh();
-            return;
-        }
-
-        RectInt clampedRect = ClampToChunk(_dirtyRect);
-
-        if (clampedRect.width <= 0 || clampedRect.height <= 0)
-            return;
-
-        DrawCells(clampedRect);
         _texture.Apply(false);
     }
 
