@@ -22,13 +22,14 @@ public class Drill : MonoBehaviour, ITool
     [SerializeField]
     private float _baseRadius = .4f;
 
+    private ToolData _activeToolData;
     private float _digTimer;
 
     #endregion
 
     #region Properties
 
-    public ToolData Data => _toolData;
+    public ToolData Data => _activeToolData == null ? _toolData : _activeToolData;
 
     #endregion
 
@@ -39,6 +40,11 @@ public class Drill : MonoBehaviour, ITool
     #endregion
 
     #region Unity Methods
+
+    private void Awake()
+    {
+        ResetEquipment();
+    }
 
     private void Update()
     {
@@ -63,7 +69,7 @@ public class Drill : MonoBehaviour, ITool
 
         DigCompleted?.Invoke(result);
         _playerEnergy.ConsumeToolEnergy(
-            _toolData.EnergyConsumption,
+            Data.EnergyConsumption,
             elapsedSinceDig
         );
     }
@@ -72,6 +78,18 @@ public class Drill : MonoBehaviour, ITool
 
     #region Public Methods
 
+    public void ApplyEquipment(ToolData _equipmentData)
+    {
+        _activeToolData = _equipmentData == null ? _toolData : _equipmentData;
+        _digTimer = 0f;
+    }
+
+    public void ResetEquipment()
+    {
+        _activeToolData = _toolData;
+        _digTimer = 0f;
+    }
+
     public bool CanUse()
     {
         return _runManager != null &&
@@ -79,7 +97,7 @@ public class Drill : MonoBehaviour, ITool
                _terrain != null &&
                _playerEnergy != null &&
                _playerEnergy.HasEnergy &&
-               _toolData != null;
+               Data != null;
     }
 
     public int Use()
@@ -103,12 +121,12 @@ public class Drill : MonoBehaviour, ITool
 
     private float GetDigRadius()
     {
-        return _baseRadius * Mathf.Max(0f, _toolData.DigDamage);
+        return _baseRadius * Mathf.Max(0f, Data.DigDamage);
     }
 
     private float GetDigInterval()
     {
-        float digSpeed = Mathf.Max(.01f, _toolData.DigSpeed);
+        float digSpeed = Mathf.Max(.01f, Data.DigSpeed);
         return 1f / digSpeed;
     }
 

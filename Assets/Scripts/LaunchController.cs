@@ -22,6 +22,7 @@ public class LaunchController : MonoBehaviour
 
     private float _charge;
     private float _chargeDirection = 1f;
+    private float _configuredLaunchForceMultiplier = 1f;
     private bool _hasLaunched;
 
     #endregion
@@ -31,6 +32,8 @@ public class LaunchController : MonoBehaviour
     public float CurrentCharge => _charge;
 
     public bool HasLaunched => _hasLaunched;
+
+    public float ConfiguredLaunchForceMultiplier => _configuredLaunchForceMultiplier;
 
     #endregion
 
@@ -65,6 +68,19 @@ public class LaunchController : MonoBehaviour
 
     #region Public Methods
 
+    public void ApplyEquipment(float _launchForceMultiplier)
+    {
+        if (float.IsNaN(_launchForceMultiplier) || float.IsInfinity(_launchForceMultiplier))
+            _launchForceMultiplier = 1f;
+
+        _configuredLaunchForceMultiplier = Mathf.Max(.01f, _launchForceMultiplier);
+    }
+
+    public void ResetEquipment()
+    {
+        _configuredLaunchForceMultiplier = 1f;
+    }
+
     public void ResetLaunch()
     {
         _hasLaunched = false;
@@ -86,7 +102,8 @@ public class LaunchController : MonoBehaviour
 
     private void UpdateChargeBar()
     {
-        _charge += _chargeDirection * _chargeSpeed * UnityEngine.Time.deltaTime;
+        float chargeSpeed = Mathf.Max(.01f, _chargeSpeed);
+        _charge += _chargeDirection * chargeSpeed * UnityEngine.Time.deltaTime;
 
         if (_charge >= 1f)
         {
@@ -114,7 +131,8 @@ public class LaunchController : MonoBehaviour
     private void StartLaunch()
     {
         _hasLaunched = true;
-        LaunchStarted?.Invoke(_charge);
+        float launchForce = Mathf.Clamp01(_charge * _configuredLaunchForceMultiplier);
+        LaunchStarted?.Invoke(launchForce);
 
         if (_hideChargeBarOnLaunch && _chargeBar != null)
             _chargeBar.gameObject.SetActive(false);

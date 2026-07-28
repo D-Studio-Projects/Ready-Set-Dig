@@ -20,6 +20,9 @@ public class TerrainChunkManager : MonoBehaviour
     private Transform _player;
 
     [SerializeField]
+    private RunManager _runManager;
+
+    [SerializeField]
     private Camera _camera;
 
     [SerializeField]
@@ -116,6 +119,9 @@ public class TerrainChunkManager : MonoBehaviour
     private void Update()
     {
         if (!_isInitialized)
+            return;
+
+        if (_runManager != null && _runManager.IsFinished)
             return;
 
         EnsureChunksAroundPlayer();
