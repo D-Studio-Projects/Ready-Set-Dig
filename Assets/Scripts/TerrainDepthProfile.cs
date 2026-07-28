@@ -1,11 +1,9 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 [Serializable]
 public class TerrainDepthLayer
 {
-    #region Fields
-
     [SerializeField]
     private string _name = "Stone";
 
@@ -17,11 +15,11 @@ public class TerrainDepthLayer
 
     [SerializeField]
     [Range(0f, 1f)]
-    private float _baseChance = .3f;
+    private float _baseChance = .15f;
 
     [SerializeField]
     [Range(0f, 1f)]
-    private float _chancePerDepth = .005f;
+    private float _chancePerDepth = .001f;
 
     [SerializeField]
     private float _noiseScale = .04f;
@@ -29,35 +27,13 @@ public class TerrainDepthLayer
     [SerializeField]
     private float _noiseOffset;
 
-    #endregion
-
-    #region Properties
-
     public string Name => _name;
-
     public TerrainBase.TerrainType TerrainType => _terrainType;
-
     public int StartDepth => _startDepth;
-
     public float BaseChance => _baseChance;
-
     public float ChancePerDepth => _chancePerDepth;
-
     public float NoiseScale => _noiseScale;
-
     public float NoiseOffset => _noiseOffset;
-
-    #endregion
-
-    #region Events
-
-    #endregion
-
-    #region Unity Methods
-
-    #endregion
-
-    #region Public Methods
 
     public bool IsAvailableAtDepth(int _depth)
     {
@@ -69,79 +45,151 @@ public class TerrainDepthLayer
         float depthProgress = Mathf.Max(0f, _depth - _startDepth);
         return Mathf.Clamp01(_baseChance + depthProgress * _chancePerDepth);
     }
-
-    #endregion
-
-    #region Private Methods
-
-    #endregion
 }
 
 [CreateAssetMenu(fileName = "TerrainDepthProfile", menuName = "Digging Madness/Terrain/Depth Profile")]
 public class TerrainDepthProfile : ScriptableObject
 {
-    #region Fields
-
     [SerializeField]
     private TerrainDepthLayer[] _layers;
 
-    #endregion
+    [SerializeField]
+    [Range(0f, 1f)]
+    private float _minimumDirtRatio = .65f;
 
-    #region Properties
+    [Header("Resource Mix")]
+    [SerializeField]
+    [Range(0f, 1f)]
+    private float _stoneWeight = .6f;
 
-    #endregion
+    [SerializeField]
+    [Range(0f, 1f)]
+    private float _ironWeight = .32f;
 
-    #region Events
+    [SerializeField]
+    [Range(0f, 1f)]
+    private float _goldWeight = .08f;
 
-    #endregion
+    [Header("Fallback Start Depths")]
+    [SerializeField]
+    private int _fallbackStoneStartDepth;
 
-    #region Unity Methods
+    [SerializeField]
+    private int _fallbackIronStartDepth = 32;
 
-    #endregion
-
-    #region Public Methods
+    [SerializeField]
+    private int _fallbackGoldStartDepth = 96;
 
     public TerrainBase.TerrainType GetTerrainType(int _globalX, int _depth, int _seed)
     {
-        if (_layers == null)
+        float dirtGate = GetNoise(_globalX, _depth, _seed, .017f, 53.71f);
+
+        if (dirtGate < Mathf.Clamp01(_minimumDirtRatio))
             return TerrainBase.TerrainType.Dirt;
 
-        for (int index = _layers.Length - 1; index >= 0; index--)
+        float stoneWeight = GetResourceWeight(
+            TerrainBase.TerrainType.Stone,
+            _globalX,
+            _depth,
+            _seed,
+            Mathf.Max(0, _fallbackStoneStartDepth),
+            _stoneWeight
+        );
+        float ironWeight = GetResourceWeight(
+            TerrainBase.TerrainType.Iron,
+            _globalX,
+            _depth,
+            _seed,
+            Mathf.Max(0, _fallbackIronStartDepth),
+            _ironWeight
+        );
+        float goldWeight = GetResourceWeight(
+            TerrainBase.TerrainType.Gold,
+            _globalX,
+            _depth,
+            _seed,
+            Mathf.Max(0, _fallbackGoldStartDepth),
+            _goldWeight
+        );
+        float totalWeight = stoneWeight + ironWeight + goldWeight;
+
+        if (totalWeight <= 0f)
+            return TerrainBase.TerrainType.Dirt;
+
+        float resourceChoice =
+            GetNoise(_globalX, _depth, _seed, .053f, 117.19f) *
+            totalWeight;
+
+        if (resourceChoice < stoneWeight)
+            return TerrainBase.TerrainType.Stone;
+
+        resourceChoice -= stoneWeight;
+
+        if (resourceChoice < ironWeight)
+            return TerrainBase.TerrainType.Iron;
+
+        return TerrainBase.TerrainType.Gold;
+    }
+
+    private float GetResourceWeight(
+        TerrainBase.TerrainType _terrainType,
+        int _globalX,
+        int _depth,
+        int _seed,
+        int _fallbackStartDepth,
+        float _baseWeight)
+    {
+        bool hasConfiguredLayer = false;
+        float strongestInfluence = 0f;
+
+        if (_layers != null)
         {
-            TerrainDepthLayer layer = _layers[index];
+            foreach (TerrainDepthLayer layer in _layers)
+            {
+                if (layer == null || layer.TerrainType != _terrainType)
+                    continue;
 
-            if (layer == null || !layer.IsAvailableAtDepth(_depth))
-                continue;
+                hasConfiguredLayer = true;
 
-            float density = layer.GetDensityAtDepth(_depth);
-
-            if (density <= 0f)
-                continue;
-
-            float noise = GetNoise(_globalX, _depth, _seed, layer);
-
-            if (noise >= 1f - density)
-                return layer.TerrainType;
+                if (layer.IsAvailableAtDepth(_depth))
+                {
+                    float density = layer.GetDensityAtDepth(_depth);
+                    float layerNoise = GetNoise(
+                        _globalX,
+                        _depth,
+                        _seed,
+                        Mathf.Max(.0001f, layer.NoiseScale),
+                        layer.NoiseOffset
+                    );
+                    float influence =
+                        Mathf.Lerp(.5f, 1f, density) *
+                        Mathf.Lerp(.25f, 1f, layerNoise);
+                    strongestInfluence = Mathf.Max(strongestInfluence, influence);
+                }
+            }
         }
 
-        return TerrainBase.TerrainType.Dirt;
+        if (hasConfiguredLayer)
+            return Mathf.Max(0f, _baseWeight) * strongestInfluence;
+
+        return _depth >= _fallbackStartDepth
+            ? Mathf.Max(0f, _baseWeight)
+            : 0f;
     }
 
-    #endregion
-
-    #region Private Methods
-
-    private float GetNoise(int _globalX, int _depth, int _seed, TerrainDepthLayer _layer)
+    private float GetNoise(
+        int _globalX,
+        int _depth,
+        int _seed,
+        float _scale,
+        float _offset)
     {
-        float seedX = _seed * .01337f + _layer.NoiseOffset;
-        float seedY = _seed * .03171f + _layer.NoiseOffset * 1.7f;
-        float scale = Mathf.Max(.0001f, _layer.NoiseScale);
+        float seedX = _seed * .01337f + _offset;
+        float seedY = _seed * .03171f + _offset * 1.7f;
 
         return Mathf.PerlinNoise(
-            (_globalX + seedX) * scale,
-            (_depth + seedY) * scale
+            (_globalX + seedX) * _scale,
+            (_depth + seedY) * _scale
         );
     }
-
-    #endregion
 }
