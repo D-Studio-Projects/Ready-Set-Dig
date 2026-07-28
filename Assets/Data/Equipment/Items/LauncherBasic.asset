@@ -20,7 +20,7 @@ MonoBehaviour:
   _description: Forca de lancamento atual.
   _isDefault: 1
   _drillToolData: {fileID: 0}
-  _launchForceMultiplier: 1
+  _launcherData: {fileID: 11400000, guid: d9849d9c163f4712b2f9369109087f69, type: 2}
   _maximumUpgradeLevel: 3
   _drillUpgradeLevels: []
   _launcherUpgradeLevels:

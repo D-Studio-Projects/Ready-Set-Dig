@@ -20,7 +20,7 @@ MonoBehaviour:
   _description: Aumenta a forca efetiva da carga.
   _isDefault: 0
   _drillToolData: {fileID: 0}
-  _launchForceMultiplier: 1.25
+  _launcherData: {fileID: 11400000, guid: 4dd06f55cd804488919016fe28d19026, type: 2}
   _maximumUpgradeLevel: 3
   _drillUpgradeLevels: []
   _launcherUpgradeLevels:
