@@ -1,8 +1,9 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class ShopItemView : MonoBehaviour
+public class ShopItemView : MonoBehaviour, IPointerEnterHandler
 {
     #region Fields
 
@@ -39,6 +40,7 @@ public class ShopItemView : MonoBehaviour
     #region Events
 
     public event Action<string> Selected;
+    public event Action<string> Hovered;
 
     #endregion
 
@@ -91,7 +93,7 @@ public class ShopItemView : MonoBehaviour
             _priceText.text = _isOwned ? "POSSE" : $"$ {_item.Price:N0}";
 
         if (_categoryText != null)
-            _categoryText.text = GetCategoryText(_item.EquipmentType);
+            _categoryText.text = GetCategoryText(_item);
 
         if (_statusText != null)
         {
@@ -107,6 +109,14 @@ public class ShopItemView : MonoBehaviour
     public void SetVisible(bool _visible)
     {
         gameObject.SetActive(_visible);
+    }
+
+    public void OnPointerEnter(PointerEventData _eventData)
+    {
+        if (!_isConfigured || string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        Hovered?.Invoke(_itemId);
     }
 
     #endregion
@@ -132,9 +142,12 @@ public class ShopItemView : MonoBehaviour
         return _canAfford ? "COMPRAR" : "SEM DINHEIRO";
     }
 
-    private string GetCategoryText(EquipmentType _type)
+    private string GetCategoryText(EquipmentItemDefinition _item)
     {
-        return _type == EquipmentType.Drill ? "BROCA" : "LANCADOR";
+        string category = _item.EquipmentType == EquipmentType.Drill
+            ? "BROCA"
+            : "LANCADOR";
+        return $"{category} - TIER {_item.Tier}";
     }
 
     #endregion

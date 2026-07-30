@@ -4,6 +4,7 @@ public readonly struct GlobalUpgradeInfo
 
     private readonly GlobalUpgradeType _upgradeType;
     private readonly string _displayName;
+    private readonly string _description;
     private readonly int _currentLevel;
     private readonly int _maximumLevel;
     private readonly bool _hasNextLevel;
@@ -22,6 +23,8 @@ public readonly struct GlobalUpgradeInfo
     public GlobalUpgradeType UpgradeType => _upgradeType;
 
     public string DisplayName => _displayName;
+
+    public string Description => _description;
 
     public int CurrentLevel => _currentLevel;
 
@@ -50,6 +53,7 @@ public readonly struct GlobalUpgradeInfo
     public GlobalUpgradeInfo(
         GlobalUpgradeType _upgradeType,
         string _displayName,
+        string _description,
         int _currentLevel,
         int _maximumLevel,
         bool _hasNextLevel,
@@ -63,6 +67,7 @@ public readonly struct GlobalUpgradeInfo
     {
         this._upgradeType = _upgradeType;
         this._displayName = _displayName;
+        this._description = _description;
         this._currentLevel = _currentLevel;
         this._maximumLevel = _maximumLevel;
         this._hasNextLevel = _hasNextLevel;

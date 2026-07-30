@@ -12,6 +12,10 @@ public class GlobalUpgradeDefinition
     [SerializeField]
     private string _displayName;
 
+    [TextArea]
+    [SerializeField]
+    private string _description;
+
     [SerializeField]
     [Min(1)]
     private int _maximumLevel = 5;
@@ -37,6 +41,10 @@ public class GlobalUpgradeDefinition
     public string DisplayName => string.IsNullOrWhiteSpace(_displayName)
         ? _upgradeType.ToString()
         : _displayName;
+
+    public string Description => string.IsNullOrWhiteSpace(_description)
+        ? GetDefaultDescription()
+        : _description;
 
     public int MaximumLevel => Mathf.Max(1, _maximumLevel);
 
@@ -109,6 +117,31 @@ public class GlobalUpgradeDefinition
     {
         int level = Mathf.Clamp(_level, 0, MaximumLevel);
         return Mathf.Max(0, Mathf.RoundToInt(EffectPerLevel * level));
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private string GetDefaultDescription()
+    {
+        switch (_upgradeType)
+        {
+            case GlobalUpgradeType.SpeedLimit:
+                return "Aumenta a velocidade maxima que voce alcanca durante a descida.";
+            case GlobalUpgradeType.SteeringSpeed:
+                return "Deixa as mudancas de direcao mais rapidas durante a run.";
+            case GlobalUpgradeType.MaximumEnergy:
+                return "Aumenta a energia maxima disponivel em cada tentativa.";
+            case GlobalUpgradeType.Luck:
+                return "Aumenta a chance de encontrar minerios mais valiosos.";
+            case GlobalUpgradeType.MoneyMultiplier:
+                return "Aumenta todo o dinheiro recebido ao encerrar uma run.";
+            case GlobalUpgradeType.DashCount:
+                return "Adiciona um uso de dash para cada nivel comprado.";
+            default:
+                return "Melhoria permanente para as proximas runs.";
+        }
     }
 
     #endregion

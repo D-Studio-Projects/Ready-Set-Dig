@@ -6,7 +6,7 @@ public class ShopUI : MonoBehaviour
 {
     #region Fields
 
-    [Header("References")]
+    [Header("Core References")]
     [SerializeField]
     private PlayerProgressService _progressService;
 
@@ -20,11 +20,45 @@ public class ShopUI : MonoBehaviour
     private Text _moneyText;
 
     [SerializeField]
+    private Text _feedbackText;
+
+    [SerializeField]
+    private Button _startRunButton;
+
+    [Header("Sections")]
+    [SerializeField]
+    private ShopSection _defaultSection = ShopSection.Equipment;
+
+    [SerializeField]
+    private Button _equipmentTabButton;
+
+    [SerializeField]
+    private Button _globalUpgradesTabButton;
+
+    [SerializeField]
+    private GameObject _equipmentSectionRoot;
+
+    [SerializeField]
+    private GameObject _globalUpgradeSectionRoot;
+
+    [SerializeField]
+    private Text _sectionTitleText;
+
+    [Header("Equipment List")]
+    [SerializeField]
     private Transform _itemContainer;
 
     [SerializeField]
     private ShopItemView[] _itemViews;
 
+    [Header("Global Upgrade List")]
+    [SerializeField]
+    private Transform _globalUpgradeContainer;
+
+    [SerializeField]
+    private GlobalUpgradeShopItemView[] _globalUpgradeViews;
+
+    [Header("Selected Product")]
     [SerializeField]
     private Text _selectedNameText;
 
@@ -55,6 +89,7 @@ public class ShopUI : MonoBehaviour
     [SerializeField]
     private Text _upgradeStatusText;
 
+    [Header("Actions")]
     [SerializeField]
     private Button _buyButton;
 
@@ -64,13 +99,19 @@ public class ShopUI : MonoBehaviour
     [SerializeField]
     private Button _upgradeButton;
 
+    [Header("Merchant")]
     [SerializeField]
-    private Text _feedbackText;
+    private Text _merchantSpeechText;
 
+    [TextArea]
     [SerializeField]
-    private Button _startRunButton;
+    private string _defaultMerchantSpeech =
+        "Passe o mouse em um produto. Eu explico o que ele faz.";
 
     private string _selectedItemId;
+    private GlobalUpgradeType _selectedGlobalUpgradeType;
+    private ShopSection _currentSection;
+    private bool _hasSelectedGlobalUpgrade;
     private bool _isVisible;
     private bool _isProcessing;
 
@@ -79,6 +120,8 @@ public class ShopUI : MonoBehaviour
     #region Properties
 
     public bool IsVisible => _isVisible;
+
+    public ShopSection CurrentSection => _currentSection;
 
     #endregion
 
@@ -89,6 +132,12 @@ public class ShopUI : MonoBehaviour
     #endregion
 
     #region Unity Methods
+
+    private void Awake()
+    {
+        ResolveItemViews();
+        _currentSection = _defaultSection;
+    }
 
     private void OnEnable()
     {
@@ -107,14 +156,13 @@ public class ShopUI : MonoBehaviour
         if (_startRunButton != null)
             _startRunButton.onClick.AddListener(HandleStartRunClicked);
 
-        if (_itemViews == null)
-            return;
+        if (_equipmentTabButton != null)
+            _equipmentTabButton.onClick.AddListener(ShowEquipmentSection);
 
-        foreach (ShopItemView itemView in _itemViews)
-        {
-            if (itemView != null)
-                itemView.Selected += HandleItemSelected;
-        }
+        if (_globalUpgradesTabButton != null)
+            _globalUpgradesTabButton.onClick.AddListener(ShowGlobalUpgradesSection);
+
+        SubscribeItemViews(true);
     }
 
     private void OnDisable()
@@ -134,14 +182,13 @@ public class ShopUI : MonoBehaviour
         if (_startRunButton != null)
             _startRunButton.onClick.RemoveListener(HandleStartRunClicked);
 
-        if (_itemViews == null)
-            return;
+        if (_equipmentTabButton != null)
+            _equipmentTabButton.onClick.RemoveListener(ShowEquipmentSection);
 
-        foreach (ShopItemView itemView in _itemViews)
-        {
-            if (itemView != null)
-                itemView.Selected -= HandleItemSelected;
-        }
+        if (_globalUpgradesTabButton != null)
+            _globalUpgradesTabButton.onClick.RemoveListener(ShowGlobalUpgradesSection);
+
+        SubscribeItemViews(false);
     }
 
     #endregion
@@ -152,10 +199,12 @@ public class ShopUI : MonoBehaviour
     {
         _isVisible = true;
         _isProcessing = false;
+        _currentSection = _defaultSection;
 
         if (_panelRoot != null)
             _panelRoot.SetActive(true);
 
+        ShowMerchantText(_defaultMerchantSpeech);
         Refresh();
     }
 
@@ -174,13 +223,122 @@ public class ShopUI : MonoBehaviour
             return;
 
         UpdateMoneyText();
-        ConfigureItemViews();
-        UpdateSelectedItem();
+        ConfigureEquipmentViews();
+        ConfigureGlobalUpgradeViews();
+        ApplySectionVisibility();
+        UpdateSelectedProduct();
+
+        if (_startRunButton != null)
+            _startRunButton.interactable = !_isProcessing;
+    }
+
+    public void ShowEquipmentSection()
+    {
+        SwitchSection(ShopSection.Equipment);
+    }
+
+    public void ShowGlobalUpgradesSection()
+    {
+        SwitchSection(ShopSection.GlobalUpgrades);
     }
 
     #endregion
 
     #region Private Methods
+
+    private void ResolveItemViews()
+    {
+        if ((_itemViews == null || _itemViews.Length == 0) &&
+            _itemContainer != null)
+        {
+            _itemViews = _itemContainer.GetComponentsInChildren<ShopItemView>(true);
+        }
+
+        if ((_globalUpgradeViews == null || _globalUpgradeViews.Length == 0) &&
+            _globalUpgradeContainer != null)
+        {
+            _globalUpgradeViews =
+                _globalUpgradeContainer.GetComponentsInChildren<GlobalUpgradeShopItemView>(true);
+        }
+    }
+
+    private void SubscribeItemViews(bool _subscribe)
+    {
+        if (_itemViews != null)
+        {
+            foreach (ShopItemView itemView in _itemViews)
+            {
+                if (itemView == null)
+                    continue;
+
+                if (_subscribe)
+                {
+                    itemView.Selected += HandleItemSelected;
+                    itemView.Hovered += HandleItemHovered;
+                }
+                else
+                {
+                    itemView.Selected -= HandleItemSelected;
+                    itemView.Hovered -= HandleItemHovered;
+                }
+            }
+        }
+
+        if (_globalUpgradeViews == null)
+            return;
+
+        foreach (GlobalUpgradeShopItemView upgradeView in _globalUpgradeViews)
+        {
+            if (upgradeView == null)
+                continue;
+
+            if (_subscribe)
+            {
+                upgradeView.Selected += HandleGlobalUpgradeSelected;
+                upgradeView.Hovered += HandleGlobalUpgradeHovered;
+            }
+            else
+            {
+                upgradeView.Selected -= HandleGlobalUpgradeSelected;
+                upgradeView.Hovered -= HandleGlobalUpgradeHovered;
+            }
+        }
+    }
+
+    private void SwitchSection(ShopSection _section)
+    {
+        if (_isProcessing)
+            return;
+
+        _currentSection = _section;
+        ApplySectionVisibility();
+        UpdateSelectedProduct();
+        ShowMerchantText(_defaultMerchantSpeech);
+    }
+
+    private void ApplySectionVisibility()
+    {
+        bool showEquipment = _currentSection == ShopSection.Equipment;
+
+        if (_equipmentSectionRoot != null)
+            _equipmentSectionRoot.SetActive(showEquipment);
+
+        if (_globalUpgradeSectionRoot != null)
+            _globalUpgradeSectionRoot.SetActive(!showEquipment);
+
+        if (_equipmentTabButton != null)
+            _equipmentTabButton.interactable = !_isProcessing && !showEquipment;
+
+        if (_globalUpgradesTabButton != null)
+            _globalUpgradesTabButton.interactable = !_isProcessing && showEquipment;
+
+        if (_sectionTitleText != null)
+        {
+            _sectionTitleText.text = showEquipment
+                ? "EQUIPAMENTOS"
+                : "UPGRADES";
+        }
+    }
 
     private void HandleProgressChanged()
     {
@@ -193,18 +351,61 @@ public class ShopUI : MonoBehaviour
             return;
 
         _selectedItemId = _itemId;
-        UpdateSelectedItem();
+        _currentSection = ShopSection.Equipment;
+        ApplySectionVisibility();
+        UpdateSelectedEquipment();
+
+        if (TryResolveEquipment(_itemId, out EquipmentItemDefinition item))
+            ShowMerchantText(item.Description);
+    }
+
+    private void HandleItemHovered(string _itemId)
+    {
+        if (TryResolveEquipment(_itemId, out EquipmentItemDefinition item))
+            ShowMerchantText(item.Description);
+    }
+
+    private void HandleGlobalUpgradeSelected(GlobalUpgradeType _upgradeType)
+    {
+        if (_isProcessing)
+            return;
+
+        _selectedGlobalUpgradeType = _upgradeType;
+        _hasSelectedGlobalUpgrade = true;
+        _currentSection = ShopSection.GlobalUpgrades;
+        ApplySectionVisibility();
+        UpdateSelectedGlobalUpgrade();
+
+        if (TryGetGlobalUpgradeInfo(_upgradeType, out GlobalUpgradeInfo info))
+            ShowMerchantText(info.Description);
+    }
+
+    private void HandleGlobalUpgradeHovered(GlobalUpgradeType _upgradeType)
+    {
+        if (TryGetGlobalUpgradeInfo(_upgradeType, out GlobalUpgradeInfo info))
+            ShowMerchantText(info.Description);
     }
 
     private void HandleBuyClicked()
     {
-        if (_isProcessing || string.IsNullOrWhiteSpace(_selectedItemId))
+        if (_isProcessing ||
+            _currentSection != ShopSection.Equipment ||
+            string.IsNullOrWhiteSpace(_selectedItemId))
+        {
             return;
+        }
 
         _isProcessing = true;
         SetOperationButtons(false);
         PurchaseResult result = _progressService == null
-            ? new PurchaseResult(false, PurchaseFailureReason.NotLoaded, _selectedItemId, 0, 0, false)
+            ? new PurchaseResult(
+                false,
+                PurchaseFailureReason.NotLoaded,
+                _selectedItemId,
+                0,
+                0,
+                false
+            )
             : _progressService.TryPurchaseEquipment(_selectedItemId);
         ShowPurchaseFeedback(result);
         _isProcessing = false;
@@ -213,13 +414,24 @@ public class ShopUI : MonoBehaviour
 
     private void HandleEquipClicked()
     {
-        if (_isProcessing || string.IsNullOrWhiteSpace(_selectedItemId))
+        if (_isProcessing ||
+            _currentSection != ShopSection.Equipment ||
+            string.IsNullOrWhiteSpace(_selectedItemId))
+        {
             return;
+        }
 
         _isProcessing = true;
         SetOperationButtons(false);
         EquipResult result = _progressService == null
-            ? new EquipResult(false, EquipFailureReason.NotLoaded, _selectedItemId, EquipmentType.Drill, false, false)
+            ? new EquipResult(
+                false,
+                EquipFailureReason.NotLoaded,
+                _selectedItemId,
+                EquipmentType.Drill,
+                false,
+                false
+            )
             : _progressService.TryEquipEquipment(_selectedItemId);
         ShowEquipFeedback(result);
         _isProcessing = false;
@@ -228,7 +440,21 @@ public class ShopUI : MonoBehaviour
 
     private void HandleUpgradeClicked()
     {
-        if (_isProcessing || string.IsNullOrWhiteSpace(_selectedItemId))
+        if (_isProcessing)
+            return;
+
+        if (_currentSection == ShopSection.GlobalUpgrades)
+        {
+            PurchaseSelectedGlobalUpgrade();
+            return;
+        }
+
+        PurchaseSelectedEquipmentUpgrade();
+    }
+
+    private void PurchaseSelectedEquipmentUpgrade()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedItemId))
             return;
 
         _isProcessing = true;
@@ -242,9 +468,34 @@ public class ShopUI : MonoBehaviour
                 0,
                 0,
                 0,
-                false)
+                false
+            )
             : _progressService.TryPurchaseEquipmentUpgrade(_selectedItemId);
         ShowUpgradeFeedback(result);
+        _isProcessing = false;
+        Refresh();
+    }
+
+    private void PurchaseSelectedGlobalUpgrade()
+    {
+        if (!_hasSelectedGlobalUpgrade)
+            return;
+
+        _isProcessing = true;
+        SetOperationButtons(false);
+        GlobalUpgradePurchaseResult result = _progressService == null
+            ? new GlobalUpgradePurchaseResult(
+                false,
+                GlobalUpgradePurchaseFailureReason.ProgressNotLoaded,
+                _selectedGlobalUpgradeType,
+                0,
+                0,
+                0,
+                0,
+                false
+            )
+            : _progressService.TryPurchaseGlobalUpgrade(_selectedGlobalUpgradeType);
+        ShowGlobalUpgradeFeedback(result);
         _isProcessing = false;
         Refresh();
     }
@@ -255,15 +506,26 @@ public class ShopUI : MonoBehaviour
             return;
 
         _isProcessing = true;
-        NewRunRequested?.Invoke();
+        SetOperationButtons(false);
+
+        if (NewRunRequested == null)
+        {
+            _isProcessing = false;
+            Refresh();
+            return;
+        }
+
+        NewRunRequested.Invoke();
     }
 
-    private void ConfigureItemViews()
+    private void ConfigureEquipmentViews()
     {
         if (_itemViews == null)
             return;
 
-        int catalogCount = _equipmentCatalog == null ? 0 : _equipmentCatalog.ItemCount;
+        int catalogCount = _equipmentCatalog == null
+            ? 0
+            : _equipmentCatalog.ItemCount;
 
         for (int index = 0; index < _itemViews.Length; index++)
         {
@@ -282,16 +544,70 @@ public class ShopUI : MonoBehaviour
                 continue;
             }
 
-            bool isOwned = _progressService != null && _progressService.OwnsEquipment(item.Id);
+            bool isOwned = _progressService != null &&
+                           _progressService.OwnsEquipment(item.Id);
             bool isEquipped = IsEquipped(item);
-            bool canAfford = _progressService != null && _progressService.TotalMoney >= item.Price;
-            itemView.Configure(item, isOwned, isEquipped, canAfford, item.HasValidConfiguration());
+            bool canAfford = _progressService != null &&
+                             _progressService.TotalMoney >= item.Price;
+            itemView.Configure(
+                item,
+                isOwned,
+                isEquipped,
+                canAfford,
+                item.HasValidConfiguration()
+            );
         }
     }
 
-    private void UpdateSelectedItem()
+    private void ConfigureGlobalUpgradeViews()
     {
-        EquipmentItemDefinition item = ResolveSelectedItem();
+        if (_globalUpgradeViews == null)
+            return;
+
+        Array upgradeTypes = Enum.GetValues(typeof(GlobalUpgradeType));
+
+        for (int index = 0; index < _globalUpgradeViews.Length; index++)
+        {
+            GlobalUpgradeShopItemView upgradeView = _globalUpgradeViews[index];
+
+            if (upgradeView == null)
+                continue;
+
+            if (index >= upgradeTypes.Length)
+            {
+                upgradeView.SetVisible(false);
+                continue;
+            }
+
+            GlobalUpgradeType upgradeType =
+                (GlobalUpgradeType)upgradeTypes.GetValue(index);
+
+            if (!TryGetGlobalUpgradeInfo(
+                    upgradeType,
+                    out GlobalUpgradeInfo info))
+            {
+                upgradeView.SetVisible(false);
+                continue;
+            }
+
+            upgradeView.Configure(info);
+        }
+    }
+
+    private void UpdateSelectedProduct()
+    {
+        if (_currentSection == ShopSection.GlobalUpgrades)
+        {
+            UpdateSelectedGlobalUpgrade();
+            return;
+        }
+
+        UpdateSelectedEquipment();
+    }
+
+    private void UpdateSelectedEquipment()
+    {
+        EquipmentItemDefinition item = ResolveSelectedEquipment();
 
         if (item == null)
         {
@@ -300,27 +616,27 @@ public class ShopUI : MonoBehaviour
         }
 
         bool isValid = item.HasValidConfiguration();
-        bool isOwned = _progressService != null && _progressService.OwnsEquipment(item.Id);
+        bool isOwned = _progressService != null &&
+                       _progressService.OwnsEquipment(item.Id);
         bool isEquipped = IsEquipped(item);
-        bool canAfford = _progressService != null && _progressService.TotalMoney >= item.Price;
-
-        if (_moneyText != null)
-        {
-            long totalMoney = _progressService == null ? 0 : _progressService.TotalMoney;
-            _moneyText.text = $"DINHEIRO: $ {totalMoney:N0}";
-        }
+        bool canAfford = _progressService != null &&
+                         _progressService.TotalMoney >= item.Price;
 
         if (_selectedNameText != null)
             _selectedNameText.text = item.DisplayName;
 
         if (_selectedCategoryText != null)
-            _selectedCategoryText.text = GetCategoryText(item.EquipmentType);
+            _selectedCategoryText.text = GetCategoryText(item);
 
         if (_selectedDescriptionText != null)
             _selectedDescriptionText.text = item.Description;
 
         if (_selectedPriceText != null)
-            _selectedPriceText.text = isOwned ? "POSSE" : $"PRECO: $ {item.Price:N0}";
+        {
+            _selectedPriceText.text = isOwned
+                ? "POSSE"
+                : $"PRECO: $ {item.Price:N0}";
+        }
 
         if (_selectedIcon != null)
         {
@@ -328,15 +644,15 @@ public class ShopUI : MonoBehaviour
             _selectedIcon.enabled = item.Icon != null;
         }
 
-        EquipmentUpgradeInfo info;
-
         if (_progressService != null &&
-            _progressService.TryGetEquipmentUpgradeInfo(item.Id, out info))
+            _progressService.TryGetEquipmentUpgradeInfo(
+                item.Id,
+                out EquipmentUpgradeInfo info))
         {
             if (_selectedAttributesText != null)
                 _selectedAttributesText.text = GetCurrentAttributesText(info);
 
-            UpdateUpgradeDetails(info);
+            UpdateEquipmentUpgradeDetails(info);
         }
         else
         {
@@ -347,19 +663,103 @@ public class ShopUI : MonoBehaviour
         }
 
         if (_buyButton != null)
-            _buyButton.interactable = !_isProcessing && isValid && !isOwned && canAfford;
+        {
+            _buyButton.interactable =
+                !_isProcessing && isValid && !isOwned && canAfford;
+        }
 
         if (_equipButton != null)
-            _equipButton.interactable = !_isProcessing && isValid && isOwned && !isEquipped;
+        {
+            _equipButton.interactable =
+                !_isProcessing && isValid && isOwned && !isEquipped;
+        }
     }
 
-    private EquipmentItemDefinition ResolveSelectedItem()
+    private void UpdateSelectedGlobalUpgrade()
+    {
+        if (!_hasSelectedGlobalUpgrade)
+        {
+            _selectedGlobalUpgradeType = GlobalUpgradeType.SpeedLimit;
+            _hasSelectedGlobalUpgrade = true;
+        }
+
+        if (!TryGetGlobalUpgradeInfo(
+                _selectedGlobalUpgradeType,
+                out GlobalUpgradeInfo info))
+        {
+            ClearDetails();
+            return;
+        }
+
+        if (_selectedNameText != null)
+            _selectedNameText.text = info.DisplayName;
+
+        if (_selectedCategoryText != null)
+            _selectedCategoryText.text = "UPGRADE GLOBAL";
+
+        if (_selectedDescriptionText != null)
+            _selectedDescriptionText.text = info.Description;
+
+        if (_selectedPriceText != null)
+        {
+            _selectedPriceText.text = info.HasNextLevel
+                ? $"PRECO: $ {info.NextLevelPrice:N0}"
+                : "NIVEL MAXIMO";
+        }
+
+        if (_selectedIcon != null)
+        {
+            _selectedIcon.sprite = null;
+            _selectedIcon.enabled = false;
+        }
+
+        if (_selectedAttributesText != null)
+            _selectedAttributesText.text = GetGlobalCurrentEffectText(info);
+
+        if (_selectedLevelText != null)
+            _selectedLevelText.text =
+                $"NIVEL: {info.CurrentLevel}/{info.MaximumLevel}";
+
+        if (_selectedUpgradePreviewText != null)
+        {
+            _selectedUpgradePreviewText.text = info.HasNextLevel
+                ? GetGlobalUpgradePreviewText(info)
+                : "NIVEL MAXIMO";
+        }
+
+        if (_upgradePriceText != null)
+        {
+            _upgradePriceText.text = info.HasNextLevel
+                ? $"PROXIMA MELHORIA: $ {info.NextLevelPrice:N0}"
+                : string.Empty;
+        }
+
+        if (_upgradeStatusText != null)
+        {
+            _upgradeStatusText.text = GetGlobalUpgradeStatusText(info);
+        }
+
+        if (_buyButton != null)
+            _buyButton.interactable = false;
+
+        if (_equipButton != null)
+            _equipButton.interactable = false;
+
+        if (_upgradeButton != null)
+        {
+            _upgradeButton.interactable =
+                !_isProcessing && info.CanPurchase;
+        }
+    }
+
+    private EquipmentItemDefinition ResolveSelectedEquipment()
     {
         if (_equipmentCatalog == null)
             return null;
 
-        if (!string.IsNullOrWhiteSpace(_selectedItemId) &&
-            _equipmentCatalog.TryGetById(_selectedItemId, out EquipmentItemDefinition selectedItem))
+        if (TryResolveEquipment(
+                _selectedItemId,
+                out EquipmentItemDefinition selectedItem))
         {
             return selectedItem;
         }
@@ -378,33 +778,73 @@ public class ShopUI : MonoBehaviour
         return null;
     }
 
+    private bool TryResolveEquipment(
+        string _itemId,
+        out EquipmentItemDefinition _item)
+    {
+        _item = null;
+
+        return _equipmentCatalog != null &&
+               !string.IsNullOrWhiteSpace(_itemId) &&
+               _equipmentCatalog.TryGetById(_itemId, out _item);
+    }
+
+    private bool TryGetGlobalUpgradeInfo(
+        GlobalUpgradeType _upgradeType,
+        out GlobalUpgradeInfo _info)
+    {
+        _info = default;
+
+        return _progressService != null &&
+               _progressService.TryGetGlobalUpgradeInfo(
+                   _upgradeType,
+                   out _info
+               );
+    }
+
     private bool IsEquipped(EquipmentItemDefinition _item)
     {
         return _progressService != null &&
-               _progressService.GetEquippedEquipmentId(_item.EquipmentType) == _item.Id;
+               _progressService.GetEquippedEquipmentId(
+                   _item.EquipmentType
+               ) == _item.Id;
     }
 
     private void UpdateMoneyText()
     {
         if (_moneyText != null)
-            _moneyText.text = $"DINHEIRO: $ {(_progressService == null ? 0 : _progressService.TotalMoney):N0}";
+        {
+            long money = _progressService == null
+                ? 0
+                : _progressService.TotalMoney;
+            _moneyText.text = $"DINHEIRO: $ {money:N0}";
+        }
     }
 
-    private void UpdateUpgradeDetails(EquipmentUpgradeInfo _info)
+    private void UpdateEquipmentUpgradeDetails(EquipmentUpgradeInfo _info)
     {
         if (_selectedLevelText != null)
-            _selectedLevelText.text = $"NIVEL: {_info.CurrentLevel}/{_info.MaximumLevel}";
+        {
+            _selectedLevelText.text =
+                $"NIVEL: {_info.CurrentLevel}/{_info.MaximumLevel}";
+        }
 
         if (!_info.IsOwned)
         {
             if (_selectedUpgradePreviewText != null)
-                _selectedUpgradePreviewText.text = "COMPRE O EQUIPAMENTO PARA LIBERAR MELHORIAS";
+            {
+                _selectedUpgradePreviewText.text =
+                    "COMPRE O EQUIPAMENTO PARA LIBERAR MELHORIAS";
+            }
 
             if (_upgradePriceText != null)
                 _upgradePriceText.text = string.Empty;
 
             if (_upgradeStatusText != null)
-                _upgradeStatusText.text = "COMPRE O EQUIPAMENTO PARA LIBERAR MELHORIAS";
+            {
+                _upgradeStatusText.text =
+                    "COMPRE O EQUIPAMENTO PARA LIBERAR MELHORIAS";
+            }
 
             if (_upgradeButton != null)
                 _upgradeButton.interactable = false;
@@ -414,18 +854,25 @@ public class ShopUI : MonoBehaviour
 
         if (!_info.HasNextLevel)
         {
+            bool reachedMaximum =
+                _info.CurrentLevel >= _info.MaximumLevel;
+
             if (_selectedUpgradePreviewText != null)
-                _selectedUpgradePreviewText.text = _info.CurrentLevel >= _info.MaximumLevel
+            {
+                _selectedUpgradePreviewText.text = reachedMaximum
                     ? "NIVEL MAXIMO"
                     : "MELHORIA INDISPONIVEL";
+            }
 
             if (_upgradePriceText != null)
                 _upgradePriceText.text = string.Empty;
 
             if (_upgradeStatusText != null)
-                _upgradeStatusText.text = _info.CurrentLevel >= _info.MaximumLevel
+            {
+                _upgradeStatusText.text = reachedMaximum
                     ? "NIVEL MAXIMO"
                     : "CONFIGURACAO DE MELHORIA INVALIDA";
+            }
 
             if (_upgradeButton != null)
                 _upgradeButton.interactable = false;
@@ -434,18 +881,30 @@ public class ShopUI : MonoBehaviour
         }
 
         if (_selectedUpgradePreviewText != null)
-            _selectedUpgradePreviewText.text = GetUpgradePreviewText(_info);
+        {
+            _selectedUpgradePreviewText.text =
+                GetEquipmentUpgradePreviewText(_info);
+        }
 
         if (_upgradePriceText != null)
-            _upgradePriceText.text = $"PROXIMA MELHORIA: $ {_info.NextLevelPrice:N0}";
+        {
+            _upgradePriceText.text =
+                $"PROXIMA MELHORIA: $ {_info.NextLevelPrice:N0}";
+        }
 
         if (_upgradeStatusText != null)
-            _upgradeStatusText.text = _info.CurrentMoney < _info.NextLevelPrice
-                ? "DINHEIRO INSUFICIENTE"
-                : string.Empty;
+        {
+            _upgradeStatusText.text =
+                _info.CurrentMoney < _info.NextLevelPrice
+                    ? "DINHEIRO INSUFICIENTE"
+                    : string.Empty;
+        }
 
         if (_upgradeButton != null)
-            _upgradeButton.interactable = !_isProcessing && _info.CanPurchaseUpgrade;
+        {
+            _upgradeButton.interactable =
+                !_isProcessing && _info.CanPurchaseUpgrade;
+        }
     }
 
     private void ClearUpgradeDetails()
@@ -480,6 +939,12 @@ public class ShopUI : MonoBehaviour
         if (_selectedPriceText != null)
             _selectedPriceText.text = string.Empty;
 
+        if (_selectedIcon != null)
+        {
+            _selectedIcon.sprite = null;
+            _selectedIcon.enabled = false;
+        }
+
         if (_selectedAttributesText != null)
             _selectedAttributesText.text = string.Empty;
 
@@ -505,6 +970,22 @@ public class ShopUI : MonoBehaviour
 
         if (_startRunButton != null)
             _startRunButton.interactable = _interactable;
+
+        if (_equipmentTabButton != null)
+            _equipmentTabButton.interactable = _interactable;
+
+        if (_globalUpgradesTabButton != null)
+            _globalUpgradesTabButton.interactable = _interactable;
+    }
+
+    private void ShowMerchantText(string _message)
+    {
+        if (_merchantSpeechText == null)
+            return;
+
+        _merchantSpeechText.text = string.IsNullOrWhiteSpace(_message)
+            ? _defaultMerchantSpeech
+            : _message;
     }
 
     private void ShowPurchaseFeedback(PurchaseResult _result)
@@ -520,7 +1001,8 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        _feedbackText.text = GetPurchaseFailureText(_result.FailureReason);
+        _feedbackText.text =
+            GetPurchaseFailureText(_result.FailureReason);
     }
 
     private void ShowEquipFeedback(EquipResult _result)
@@ -536,7 +1018,8 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        _feedbackText.text = GetEquipFailureText(_result.FailureReason);
+        _feedbackText.text =
+            GetEquipFailureText(_result.FailureReason);
     }
 
     private void ShowUpgradeFeedback(UpgradePurchaseResult _result)
@@ -547,12 +1030,31 @@ public class ShopUI : MonoBehaviour
         if (_result.Success)
         {
             _feedbackText.text = _result.Persisted
-                ? "Melhoria comprada."
+                ? "Melhoria do equipamento comprada."
                 : "Melhoria aplicada. Falha ao salvar; tente salvar novamente.";
             return;
         }
 
-        _feedbackText.text = GetUpgradeFailureText(_result.FailureReason);
+        _feedbackText.text =
+            GetEquipmentUpgradeFailureText(_result.FailureReason);
+    }
+
+    private void ShowGlobalUpgradeFeedback(
+        GlobalUpgradePurchaseResult _result)
+    {
+        if (_feedbackText == null)
+            return;
+
+        if (_result.Succeeded)
+        {
+            _feedbackText.text = _result.Persisted
+                ? $"Upgrade comprado. Nivel {_result.NewLevel}."
+                : "Upgrade aplicado. Falha ao salvar; tente salvar novamente.";
+            return;
+        }
+
+        _feedbackText.text =
+            GetGlobalUpgradeFailureText(_result.FailureReason);
     }
 
     private string GetPurchaseFailureText(PurchaseFailureReason _reason)
@@ -589,7 +1091,8 @@ public class ShopUI : MonoBehaviour
         }
     }
 
-    private string GetUpgradeFailureText(UpgradePurchaseFailureReason _reason)
+    private string GetEquipmentUpgradeFailureText(
+        UpgradePurchaseFailureReason _reason)
     {
         switch (_reason)
         {
@@ -610,9 +1113,34 @@ public class ShopUI : MonoBehaviour
         }
     }
 
-    private string GetCategoryText(EquipmentType _type)
+    private string GetGlobalUpgradeFailureText(
+        GlobalUpgradePurchaseFailureReason _reason)
     {
-        return _type == EquipmentType.Drill ? "BROCA" : "LANCADOR";
+        switch (_reason)
+        {
+            case GlobalUpgradePurchaseFailureReason.ProgressNotLoaded:
+                return "Progresso ainda nao carregado.";
+            case GlobalUpgradePurchaseFailureReason.MaximumLevelReached:
+                return "Este upgrade ja esta no nivel maximo.";
+            case GlobalUpgradePurchaseFailureReason.InsufficientMoney:
+                return "Dinheiro insuficiente.";
+            case GlobalUpgradePurchaseFailureReason.InvalidPrice:
+                return "Preco de upgrade invalido.";
+            case GlobalUpgradePurchaseFailureReason.OperationInProgress:
+                return "A compra ja esta sendo processada.";
+            case GlobalUpgradePurchaseFailureReason.SaveFailed:
+                return "Upgrade aplicado, mas o save falhou.";
+            default:
+                return "Upgrade indisponivel.";
+        }
+    }
+
+    private string GetCategoryText(EquipmentItemDefinition _item)
+    {
+        string category = _item.EquipmentType == EquipmentType.Drill
+            ? "BROCA"
+            : "LANCADOR";
+        return $"{category} - TIER {_item.Tier}";
     }
 
     private string GetCurrentAttributesText(EquipmentUpgradeInfo _info)
@@ -620,19 +1148,27 @@ public class ShopUI : MonoBehaviour
         if (_info.EquipmentType == EquipmentType.Drill)
         {
             DrillStats stats = _info.CurrentDrillStats;
-            return $"Dano: x{stats.DigDamage:0.##}" + Environment.NewLine + $"Velocidade: x{stats.DigSpeed:0.##}" + Environment.NewLine + $"Consumo: {stats.EnergyConsumption:0.##}";
+            return $"Dano: x{stats.DigDamage:0.##}" +
+                   Environment.NewLine +
+                   $"Velocidade: x{stats.DigSpeed:0.##}" +
+                   Environment.NewLine +
+                   $"Consumo: {stats.EnergyConsumption:0.##}";
         }
 
         return $"Forca de lancamento: x{_info.CurrentLaunchForceMultiplier:0.##}";
     }
 
-
     private string GetBaseAttributesText(EquipmentItemDefinition _item)
     {
-        if (_item.EquipmentType == EquipmentType.Drill && _item.DrillToolData != null)
+        if (_item.EquipmentType == EquipmentType.Drill &&
+            _item.DrillToolData != null)
         {
             ToolData data = _item.DrillToolData;
-            return $"Dano: x{data.DigDamage:0.##}" + Environment.NewLine + $"Velocidade: x{data.DigSpeed:0.##}" + Environment.NewLine + $"Consumo: {data.EnergyConsumption:0.##}";
+            return $"Dano: x{data.DigDamage:0.##}" +
+                   Environment.NewLine +
+                   $"Velocidade: x{data.DigSpeed:0.##}" +
+                   Environment.NewLine +
+                   $"Consumo: {data.EnergyConsumption:0.##}";
         }
 
         if (_item.EquipmentType == EquipmentType.Launcher)
@@ -641,19 +1177,76 @@ public class ShopUI : MonoBehaviour
         return string.Empty;
     }
 
-
-    private string GetUpgradePreviewText(EquipmentUpgradeInfo _info)
+    private string GetEquipmentUpgradePreviewText(
+        EquipmentUpgradeInfo _info)
     {
         if (_info.EquipmentType == EquipmentType.Drill)
         {
             DrillStats current = _info.CurrentDrillStats;
             DrillStats next = _info.NextDrillStats;
-            return $"Proximo nivel:" + Environment.NewLine + $"Dano x{current.DigDamage:0.##} -> x{next.DigDamage:0.##} | Velocidade x{current.DigSpeed:0.##} -> x{next.DigSpeed:0.##} | Consumo {current.EnergyConsumption:0.##} -> {next.EnergyConsumption:0.##}";
+            return "Proximo nivel:" +
+                   Environment.NewLine +
+                   $"Dano x{current.DigDamage:0.##} -> x{next.DigDamage:0.##} | " +
+                   $"Velocidade x{current.DigSpeed:0.##} -> x{next.DigSpeed:0.##} | " +
+                   $"Consumo {current.EnergyConsumption:0.##} -> {next.EnergyConsumption:0.##}";
         }
 
-        return $"Proximo nivel: Forca de lancamento x{_info.CurrentLaunchForceMultiplier:0.##} -> x{_info.NextLaunchForceMultiplier:0.##}";
+        return "Proximo nivel: Forca de lancamento " +
+               $"x{_info.CurrentLaunchForceMultiplier:0.##} -> " +
+               $"x{_info.NextLaunchForceMultiplier:0.##}";
     }
 
+    private string GetGlobalCurrentEffectText(GlobalUpgradeInfo _info)
+    {
+        if (_info.UpgradeType == GlobalUpgradeType.DashCount)
+            return $"Usos de dash por run: {_info.CurrentFlatBonus + 1}";
+
+        return $"{GetGlobalEffectLabel(_info.UpgradeType)}: " +
+               $"x{_info.CurrentMultiplier:0.##}";
+    }
+
+    private string GetGlobalUpgradePreviewText(GlobalUpgradeInfo _info)
+    {
+        if (_info.UpgradeType == GlobalUpgradeType.DashCount)
+        {
+            return "Proximo nivel: " +
+                   $"{_info.CurrentFlatBonus + 1} -> " +
+                   $"{_info.NextFlatBonus + 1} usos";
+        }
+
+        return "Proximo nivel: " +
+               $"x{_info.CurrentMultiplier:0.##} -> " +
+               $"x{_info.NextMultiplier:0.##}";
+    }
+
+    private string GetGlobalUpgradeStatusText(GlobalUpgradeInfo _info)
+    {
+        if (!_info.HasNextLevel)
+            return "NIVEL MAXIMO";
+
+        return _info.CurrentMoney < _info.NextLevelPrice
+            ? "DINHEIRO INSUFICIENTE"
+            : string.Empty;
+    }
+
+    private string GetGlobalEffectLabel(GlobalUpgradeType _upgradeType)
+    {
+        switch (_upgradeType)
+        {
+            case GlobalUpgradeType.SpeedLimit:
+                return "Limite de velocidade";
+            case GlobalUpgradeType.SteeringSpeed:
+                return "Velocidade de curva";
+            case GlobalUpgradeType.MaximumEnergy:
+                return "Energia maxima";
+            case GlobalUpgradeType.Luck:
+                return "Sorte";
+            case GlobalUpgradeType.MoneyMultiplier:
+                return "Recompensa em dinheiro";
+            default:
+                return "Efeito";
+        }
+    }
 
     #endregion
 }

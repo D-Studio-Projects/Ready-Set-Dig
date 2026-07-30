@@ -20,6 +20,10 @@ public class EquipmentItemDefinition : ScriptableObject
     private EquipmentType _equipmentType;
 
     [SerializeField]
+    [Min(1)]
+    private int _tier = 1;
+
+    [SerializeField]
     private long _price;
 
     [SerializeField]
@@ -60,6 +64,8 @@ public class EquipmentItemDefinition : ScriptableObject
     public string DisplayName => _displayName;
 
     public EquipmentType EquipmentType => _equipmentType;
+
+    public int Tier => Mathf.Max(1, _tier);
 
     public long Price => _price;
 

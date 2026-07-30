@@ -194,6 +194,7 @@ public class PlayerProgressService : MonoBehaviour
         _info = new GlobalUpgradeInfo(
             _upgradeType,
             definition.DisplayName,
+            definition.Description,
             currentLevel,
             definition.MaximumLevel,
             hasNextLevel,
