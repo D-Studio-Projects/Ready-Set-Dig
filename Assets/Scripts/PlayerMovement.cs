@@ -51,6 +51,7 @@ public class PlayerMovement : MonoBehaviour
     private bool _isMoving;
     private bool _canMoveHorizontal;
     private bool _isDashing;
+    private bool _isPausedByObstacle;
     private float _currentFallSpeed;
     private float _currentHorizontalSpeed;
     private float _input;
@@ -73,6 +74,8 @@ public class PlayerMovement : MonoBehaviour
 
     public bool IsDashing => _isDashing;
 
+    public bool IsPausedByObstacle => _isPausedByObstacle;
+
     public int MaximumDashCount => _maximumDashCount;
 
     public int RemainingDashCount => _remainingDashCount;
@@ -87,6 +90,8 @@ public class PlayerMovement : MonoBehaviour
     public event Action DashStarted;
     public event Action DashEnded;
     public event Action<int, int> DashCountChanged;
+    public event Action<bool> ObstaclePauseChanged;
+    public event Action<float> SpeedPenaltyApplied;
 
     #endregion
 
@@ -110,10 +115,11 @@ public class PlayerMovement : MonoBehaviour
     {
         _input = 0f;
 
-        if (_isMoving && _canMoveHorizontal)
+        if (_isMoving && !_isPausedByObstacle && _canMoveHorizontal)
             _input = Input.GetAxisRaw("Horizontal");
 
         if (_isMoving &&
+            !_isPausedByObstacle &&
             (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0)))
         {
             TryDash();
@@ -130,6 +136,12 @@ public class PlayerMovement : MonoBehaviour
         if (!_isMoving)
         {
             DecelerateToStop();
+            return;
+        }
+
+        if (_isPausedByObstacle)
+        {
+            HoldPositionForObstacle();
             return;
         }
 
@@ -174,6 +186,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void StartMovement()
     {
+        SetObstaclePause(false);
         _isMoving = true;
         _canMoveHorizontal = true;
         _movementStartedFrame = Time.frameCount;
@@ -196,6 +209,7 @@ public class PlayerMovement : MonoBehaviour
     {
         _isMoving = false;
         _canMoveHorizontal = false;
+        SetObstaclePause(false);
         EndDash();
         _currentFallSpeed = 0f;
         _currentHorizontalSpeed = 0f;
@@ -218,6 +232,7 @@ public class PlayerMovement : MonoBehaviour
         _launchForce = 0f;
         _movementStartedFrame = -1;
         _lastTrackedY = _position.y;
+        SetObstaclePause(false);
         EndDash();
         ResetDashCharges();
         transform.SetPositionAndRotation(_position, _rotation);
@@ -233,6 +248,7 @@ public class PlayerMovement : MonoBehaviour
     public bool TryDash()
     {
         if (!_isMoving ||
+            _isPausedByObstacle ||
             _isDashing ||
             _remainingDashCount <= 0 ||
             Time.frameCount <= _movementStartedFrame)
@@ -251,6 +267,60 @@ public class PlayerMovement : MonoBehaviour
         DashCountChanged?.Invoke(_remainingDashCount, _maximumDashCount);
         DashStarted?.Invoke();
         return true;
+    }
+
+    public bool PauseForObstacle()
+    {
+        if (!_isMoving || _isPausedByObstacle)
+            return false;
+
+        EndDash();
+        _input = 0f;
+        _currentHorizontalSpeed = 0f;
+        _canMoveHorizontal = false;
+        SetObstaclePause(true);
+        HoldPositionForObstacle();
+        return true;
+    }
+
+    public bool ResumeFromObstacle()
+    {
+        if (!_isMoving || !_isPausedByObstacle)
+            return false;
+
+        SetObstaclePause(false);
+        _canMoveHorizontal = true;
+        _lastTrackedY = transform.position.y;
+
+        if (_rigidbody != null)
+        {
+            _rigidbody.gravityScale = 0f;
+            _rigidbody.linearVelocity = Vector2.down * _currentFallSpeed;
+        }
+
+        return true;
+    }
+
+    public void ApplySpeedPenalty(float _remainingSpeedMultiplier)
+    {
+        float remainingSpeedMultiplier = float.IsNaN(_remainingSpeedMultiplier) ||
+                                         float.IsInfinity(_remainingSpeedMultiplier)
+            ? 1f
+            : Mathf.Clamp01(_remainingSpeedMultiplier);
+        _currentFallSpeed = Mathf.Max(
+            0f,
+            _currentFallSpeed * remainingSpeedMultiplier
+        );
+
+        if (_rigidbody != null && _isMoving && !_isPausedByObstacle)
+        {
+            _rigidbody.linearVelocity = new Vector2(
+                _currentHorizontalSpeed,
+                -_currentFallSpeed
+            );
+        }
+
+        SpeedPenaltyApplied?.Invoke(remainingSpeedMultiplier);
     }
 
     #endregion
@@ -288,6 +358,16 @@ public class PlayerMovement : MonoBehaviour
     private void ApplyVelocity()
     {
         _rigidbody.linearVelocity = new Vector2(_currentHorizontalSpeed, -_currentFallSpeed);
+    }
+
+    private void HoldPositionForObstacle()
+    {
+        if (_rigidbody == null)
+            return;
+
+        _rigidbody.gravityScale = 0f;
+        _rigidbody.linearVelocity = Vector2.zero;
+        _rigidbody.angularVelocity = 0f;
     }
 
     private void DecelerateToStop()
@@ -352,6 +432,15 @@ public class PlayerMovement : MonoBehaviour
         _maximumDashCount = Mathf.Max(0, _maximumDashCount);
         _remainingDashCount = _maximumDashCount;
         DashCountChanged?.Invoke(_remainingDashCount, _maximumDashCount);
+    }
+
+    private void SetObstaclePause(bool _isPaused)
+    {
+        if (_isPausedByObstacle == _isPaused)
+            return;
+
+        _isPausedByObstacle = _isPaused;
+        ObstaclePauseChanged?.Invoke(_isPausedByObstacle);
     }
 
     private float GetMaximumFallSpeed()

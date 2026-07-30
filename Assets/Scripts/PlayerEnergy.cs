@@ -28,8 +28,11 @@ public class PlayerEnergy : MonoBehaviour
     private LayerMask _obstacleLayers;
 
     private readonly Dictionary<Collider2D, float> _obstacleContacts = new Dictionary<Collider2D, float>();
+    private readonly List<Collider2D> _invalidObstacleContacts = new List<Collider2D>();
     private float _currentEnergy;
     private float _maximumEnergyMultiplier = 1f;
+    private float _obstacleQteDrainPerSecond;
+    private bool _isObstacleQteActive;
 
     #endregion
 
@@ -47,12 +50,17 @@ public class PlayerEnergy : MonoBehaviour
 
     public float CurrentDrainMultiplier => GetCurrentObstacleMultiplier();
 
+    public bool IsObstacleQteActive => _isObstacleQteActive;
+
+    public float ObstacleQteDrainPerSecond => _obstacleQteDrainPerSecond;
+
     #endregion
 
     #region Events
 
     public event Action<float, float> EnergyChanged;
     public event Action EnergyDepleted;
+    public event Action<bool> ObstacleQteDrainChanged;
 
     #endregion
 
@@ -64,6 +72,12 @@ public class PlayerEnergy : MonoBehaviour
             _playerMovement = GetComponentInParent<PlayerMovement>();
 
         ResetEnergy();
+    }
+
+    private void Update()
+    {
+        if (_isObstacleQteActive && HasEnergy)
+            Consume(_obstacleQteDrainPerSecond * Time.deltaTime);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -86,6 +100,7 @@ public class PlayerEnergy : MonoBehaviour
     public void ResetForRun()
     {
         _obstacleContacts.Clear();
+        EndObstacleQteDrain();
         ResetEnergy();
     }
 
@@ -122,6 +137,9 @@ public class PlayerEnergy : MonoBehaviour
         if (!HasEnergy)
             return false;
 
+        if (_isObstacleQteActive)
+            return true;
+
         if (energyConsumption <= 0f || deltaTime <= 0f)
             return true;
 
@@ -130,6 +148,28 @@ public class PlayerEnergy : MonoBehaviour
             : GetCurrentObstacleMultiplier();
         Consume(energyConsumption * obstacleMultiplier * deltaTime);
         return HasEnergy;
+    }
+
+    public void BeginObstacleQteDrain(float _energyPerSecond)
+    {
+        _obstacleQteDrainPerSecond = Mathf.Max(0f, _energyPerSecond);
+
+        if (_isObstacleQteActive)
+            return;
+
+        _isObstacleQteActive = true;
+        ObstacleQteDrainChanged?.Invoke(true);
+    }
+
+    public void EndObstacleQteDrain()
+    {
+        _obstacleQteDrainPerSecond = 0f;
+
+        if (!_isObstacleQteActive)
+            return;
+
+        _isObstacleQteActive = false;
+        ObstacleQteDrainChanged?.Invoke(false);
     }
 
     public void Consume(float amount)
@@ -184,11 +224,25 @@ public class PlayerEnergy : MonoBehaviour
     private float GetCurrentObstacleMultiplier()
     {
         float multiplier = 1f;
+        _invalidObstacleContacts.Clear();
 
-        foreach (float contactMultiplier in _obstacleContacts.Values)
+        foreach (KeyValuePair<Collider2D, float> contact in _obstacleContacts)
         {
-            multiplier = Mathf.Max(multiplier, contactMultiplier);
+            Collider2D obstacleCollider = contact.Key;
+
+            if (obstacleCollider == null ||
+                !obstacleCollider.enabled ||
+                !obstacleCollider.gameObject.activeInHierarchy)
+            {
+                _invalidObstacleContacts.Add(obstacleCollider);
+                continue;
+            }
+
+            multiplier = Mathf.Max(multiplier, contact.Value);
         }
+
+        foreach (Collider2D obstacleCollider in _invalidObstacleContacts)
+            _obstacleContacts.Remove(obstacleCollider);
 
         return multiplier;
     }
