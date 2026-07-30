@@ -8,7 +8,7 @@ public class PlayerProgressService : MonoBehaviour
 {
     #region Fields
 
-    private const int CurrentSaveVersion = 3;
+    private const int CurrentSaveVersion = 4;
     private const string SaveFileName = "player_progress.json";
     private const string SaveTemporarySuffix = ".tmp";
     private const string SaveBackupSuffix = ".backup.json";
@@ -23,6 +23,21 @@ public class PlayerProgressService : MonoBehaviour
     [SerializeField]
     private EquipmentCatalog _equipmentCatalog;
 
+    [Header("Global Upgrade Targets")]
+    [SerializeField]
+    private PlayerMovement _playerMovement;
+
+    [SerializeField]
+    private PlayerEnergy _playerEnergy;
+
+    [SerializeField]
+    private TerrainChunkManager _terrainChunkManager;
+
+    [Header("Global Upgrade Balance")]
+    [SerializeField]
+    private GlobalUpgradeBalance _globalUpgradeBalance =
+        new GlobalUpgradeBalance();
+
     private ProgressData _data;
     private int _lastAppliedRunId;
     private bool _hasLoaded;
@@ -31,6 +46,7 @@ public class PlayerProgressService : MonoBehaviour
     private bool _purchaseInProgress;
     private bool _equipInProgress;
     private bool _upgradeInProgress;
+    private bool _globalUpgradeInProgress;
 
     private IProgressDataOperations DataOperations => _data;
 
@@ -67,7 +83,14 @@ public class PlayerProgressService : MonoBehaviour
 
     private void Awake()
     {
+        EnsureGlobalUpgradeBalance();
         Load();
+    }
+
+    private void Start()
+    {
+        ResolveGlobalUpgradeTargets();
+        ApplyGlobalUpgradeEffects(true);
     }
 
     private void OnEnable()
@@ -81,6 +104,13 @@ public class PlayerProgressService : MonoBehaviour
         if (_runManager != null)
             _runManager.RunFinished -= HandleRunFinished;
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        EnsureGlobalUpgradeBalance();
+    }
+#endif
 
     #endregion
 
@@ -96,6 +126,86 @@ public class PlayerProgressService : MonoBehaviour
     {
         EnsureLoaded();
         return _data == null ? 0 : DataOperations.GetEquipmentLevel(_equipmentId);
+    }
+
+    public int GetGlobalUpgradeLevel(GlobalUpgradeType _upgradeType)
+    {
+        EnsureLoaded();
+
+        if (_data == null ||
+            !TryGetGlobalUpgradeDefinition(_upgradeType, out GlobalUpgradeDefinition definition))
+        {
+            return 0;
+        }
+
+        return Mathf.Clamp(
+            DataOperations.GetGlobalUpgradeLevel(_upgradeType),
+            0,
+            definition.MaximumLevel
+        );
+    }
+
+    public float GetGlobalUpgradeMultiplier(GlobalUpgradeType _upgradeType)
+    {
+        if (!TryGetGlobalUpgradeDefinition(_upgradeType, out GlobalUpgradeDefinition definition))
+            return 1f;
+
+        return definition.GetMultiplier(GetGlobalUpgradeLevel(_upgradeType));
+    }
+
+    public int GetGlobalUpgradeFlatBonus(GlobalUpgradeType _upgradeType)
+    {
+        if (!TryGetGlobalUpgradeDefinition(_upgradeType, out GlobalUpgradeDefinition definition))
+            return 0;
+
+        return definition.GetFlatBonus(GetGlobalUpgradeLevel(_upgradeType));
+    }
+
+    public bool TryGetGlobalUpgradeInfo(
+        GlobalUpgradeType _upgradeType,
+        out GlobalUpgradeInfo _info)
+    {
+        _info = default;
+
+        if (!EnsureLoaded() ||
+            _data == null ||
+            !TryGetGlobalUpgradeDefinition(_upgradeType, out GlobalUpgradeDefinition definition))
+        {
+            return false;
+        }
+
+        int currentLevel = Mathf.Clamp(
+            DataOperations.GetGlobalUpgradeLevel(_upgradeType),
+            0,
+            definition.MaximumLevel
+        );
+        bool hasNextLevel = currentLevel < definition.MaximumLevel;
+        int nextLevel = hasNextLevel ? currentLevel + 1 : currentLevel;
+        long nextLevelPrice = hasNextLevel
+            ? definition.GetPriceForLevel(nextLevel)
+            : 0;
+        bool canPurchase = hasNextLevel &&
+                           nextLevelPrice >= 0 &&
+                           TotalMoney >= nextLevelPrice &&
+                           (_runManager == null ||
+                            (!_runManager.IsRunning &&
+                             _runManager.CurrentState != RunState.Launching));
+
+        _info = new GlobalUpgradeInfo(
+            _upgradeType,
+            definition.DisplayName,
+            currentLevel,
+            definition.MaximumLevel,
+            hasNextLevel,
+            canPurchase,
+            nextLevelPrice,
+            TotalMoney,
+            definition.GetMultiplier(currentLevel),
+            definition.GetMultiplier(nextLevel),
+            definition.GetFlatBonus(currentLevel),
+            definition.GetFlatBonus(nextLevel)
+        );
+        return true;
     }
 
     public string GetEquippedEquipmentId(EquipmentType _type)
@@ -438,6 +548,143 @@ public class PlayerProgressService : MonoBehaviour
         }
     }
 
+    public GlobalUpgradePurchaseResult TryPurchaseGlobalUpgrade(
+        GlobalUpgradeType _upgradeType)
+    {
+        if (_globalUpgradeInProgress)
+        {
+            return CreateGlobalUpgradeFailure(
+                _upgradeType,
+                GlobalUpgradePurchaseFailureReason.OperationInProgress,
+                GetGlobalUpgradeLevel(_upgradeType),
+                true
+            );
+        }
+
+        _globalUpgradeInProgress = true;
+
+        try
+        {
+            if (!EnsureLoaded() || _data == null)
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.ProgressNotLoaded,
+                    0,
+                    false
+                );
+            }
+
+            if (!TryGetGlobalUpgradeDefinition(
+                    _upgradeType,
+                    out GlobalUpgradeDefinition definition))
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.InvalidUpgrade,
+                    0,
+                    true
+                );
+            }
+
+            if (_runManager != null &&
+                (_runManager.IsRunning ||
+                 _runManager.CurrentState == RunState.Launching))
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.OperationInProgress,
+                    GetGlobalUpgradeLevel(_upgradeType),
+                    true
+                );
+            }
+
+            int previousLevel = Mathf.Clamp(
+                DataOperations.GetGlobalUpgradeLevel(_upgradeType),
+                0,
+                definition.MaximumLevel
+            );
+
+            if (previousLevel >= definition.MaximumLevel)
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.MaximumLevelReached,
+                    previousLevel,
+                    true
+                );
+            }
+
+            int newLevel = previousLevel + 1;
+            long price = definition.GetPriceForLevel(newLevel);
+
+            if (price < 0)
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.InvalidPrice,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (DataOperations.TotalMoney < price)
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.InsufficientMoney,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (!DataOperations.TrySetGlobalUpgradeLevel(_upgradeType, newLevel))
+            {
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.InvalidUpgrade,
+                    previousLevel,
+                    true
+                );
+            }
+
+            if (!DataOperations.TrySpendMoney(price))
+            {
+                DataOperations.TrySetGlobalUpgradeLevel(
+                    _upgradeType,
+                    previousLevel
+                );
+                return CreateGlobalUpgradeFailure(
+                    _upgradeType,
+                    GlobalUpgradePurchaseFailureReason.InsufficientMoney,
+                    previousLevel,
+                    true
+                );
+            }
+
+            bool persistenceSucceeded = Save();
+            ApplyGlobalUpgradeEffects(true);
+            ProgressChanged?.Invoke();
+
+            return new GlobalUpgradePurchaseResult(
+                true,
+                persistenceSucceeded
+                    ? GlobalUpgradePurchaseFailureReason.None
+                    : GlobalUpgradePurchaseFailureReason.SaveFailed,
+                _upgradeType,
+                previousLevel,
+                newLevel,
+                price,
+                DataOperations.TotalMoney,
+                persistenceSucceeded
+            );
+        }
+        finally
+        {
+            _globalUpgradeInProgress = false;
+        }
+    }
+
     public EquipResult TryEquipEquipment(string _itemId)
     {
         if (_equipInProgress)
@@ -520,7 +767,10 @@ public class PlayerProgressService : MonoBehaviour
         if (!CanApplyRunResult(_result))
             return false;
 
-        RunReward reward = _rewardCalculator.Calculate(_result);
+        RunReward reward = _rewardCalculator.Calculate(
+            _result,
+            GetGlobalUpgradeMultiplier(GlobalUpgradeType.MoneyMultiplier)
+        );
         DataOperations.ApplyRunResult(
             _result.Depth,
             reward.Score,
@@ -601,9 +851,11 @@ public class PlayerProgressService : MonoBehaviour
         _data = CreateDefaultData();
         EnsureEquipmentData();
         NormalizeUpgradeData();
+        NormalizeGlobalUpgradeData();
         _lastAppliedRunId = 0;
         _hasLoaded = true;
         Save();
+        ApplyGlobalUpgradeEffects(true);
         ProgressChanged?.Invoke();
     }
 
@@ -634,6 +886,10 @@ public class PlayerProgressService : MonoBehaviour
         bool TryGetEquipmentUpgradeAt(int _index, out string _equipmentId, out int _level);
         bool TrySetEquipmentLevel(string _equipmentId, int _level);
         void ClearEquipmentUpgrades();
+        int GetGlobalUpgradeLevel(GlobalUpgradeType _upgradeType);
+        bool TrySetGlobalUpgradeLevel(
+            GlobalUpgradeType _upgradeType,
+            int _level);
         bool SetSaveVersion(int _version);
         bool TrySpendMoney(long _amount);
         bool TryAddMoney(long _amount);
@@ -703,7 +959,7 @@ private class ProgressData : IProgressDataOperations
     #region Fields
 
     [SerializeField]
-    private int _saveVersion = 3;
+    private int _saveVersion = 4;
 
     [SerializeField]
     private long _totalMoney;
@@ -732,6 +988,24 @@ private class ProgressData : IProgressDataOperations
     [SerializeField]
     private List<UpgradeProgress> _equipmentUpgrades =
         new List<UpgradeProgress>();
+
+    [SerializeField]
+    private int _speedLimitUpgradeLevel;
+
+    [SerializeField]
+    private int _steeringSpeedUpgradeLevel;
+
+    [SerializeField]
+    private int _maximumEnergyUpgradeLevel;
+
+    [SerializeField]
+    private int _luckUpgradeLevel;
+
+    [SerializeField]
+    private int _moneyMultiplierUpgradeLevel;
+
+    [SerializeField]
+    private int _dashCountUpgradeLevel;
 
     #endregion
 
@@ -771,7 +1045,7 @@ private class ProgressData : IProgressDataOperations
 
     public ProgressData()
     {
-        _saveVersion = 3;
+        _saveVersion = 4;
         _ownedEquipmentIds = new List<string>();
         _equipmentUpgrades = new List<UpgradeProgress>();
     }
@@ -924,6 +1198,53 @@ private class ProgressData : IProgressDataOperations
         _equipmentUpgrades.Clear();
     }
 
+    private int GetGlobalUpgradeLevel(GlobalUpgradeType _upgradeType)
+    {
+        switch (_upgradeType)
+        {
+            case GlobalUpgradeType.SpeedLimit:
+                return Mathf.Max(0, _speedLimitUpgradeLevel);
+            case GlobalUpgradeType.SteeringSpeed:
+                return Mathf.Max(0, _steeringSpeedUpgradeLevel);
+            case GlobalUpgradeType.MaximumEnergy:
+                return Mathf.Max(0, _maximumEnergyUpgradeLevel);
+            case GlobalUpgradeType.Luck:
+                return Mathf.Max(0, _luckUpgradeLevel);
+            case GlobalUpgradeType.MoneyMultiplier:
+                return Mathf.Max(0, _moneyMultiplierUpgradeLevel);
+            case GlobalUpgradeType.DashCount:
+                return Mathf.Max(0, _dashCountUpgradeLevel);
+            default:
+                return 0;
+        }
+    }
+
+    private bool TrySetGlobalUpgradeLevel(
+        GlobalUpgradeType _upgradeType,
+        int _level)
+    {
+        if (_level < 0)
+            return false;
+
+        switch (_upgradeType)
+        {
+            case GlobalUpgradeType.SpeedLimit:
+                return TrySetLevel(ref _speedLimitUpgradeLevel, _level);
+            case GlobalUpgradeType.SteeringSpeed:
+                return TrySetLevel(ref _steeringSpeedUpgradeLevel, _level);
+            case GlobalUpgradeType.MaximumEnergy:
+                return TrySetLevel(ref _maximumEnergyUpgradeLevel, _level);
+            case GlobalUpgradeType.Luck:
+                return TrySetLevel(ref _luckUpgradeLevel, _level);
+            case GlobalUpgradeType.MoneyMultiplier:
+                return TrySetLevel(ref _moneyMultiplierUpgradeLevel, _level);
+            case GlobalUpgradeType.DashCount:
+                return TrySetLevel(ref _dashCountUpgradeLevel, _level);
+            default:
+                return false;
+        }
+    }
+
     private bool SetSaveVersion(int _version)
     {
         if (_version <= 0 || _saveVersion == _version)
@@ -987,6 +1308,12 @@ private class ProgressData : IProgressDataOperations
 
         changed |= EnsureOwnedEquipmentCollection();
         changed |= EnsureUpgradeCollection();
+        changed |= NormalizeNonNegative(ref _speedLimitUpgradeLevel);
+        changed |= NormalizeNonNegative(ref _steeringSpeedUpgradeLevel);
+        changed |= NormalizeNonNegative(ref _maximumEnergyUpgradeLevel);
+        changed |= NormalizeNonNegative(ref _luckUpgradeLevel);
+        changed |= NormalizeNonNegative(ref _moneyMultiplierUpgradeLevel);
+        changed |= NormalizeNonNegative(ref _dashCountUpgradeLevel);
         return changed;
     }
 
@@ -1023,6 +1350,24 @@ private class ProgressData : IProgressDataOperations
             return long.MaxValue;
 
         return _current + _amount;
+    }
+
+    private bool TrySetLevel(ref int _currentLevel, int _newLevel)
+    {
+        if (_currentLevel == _newLevel)
+            return false;
+
+        _currentLevel = _newLevel;
+        return true;
+    }
+
+    private bool NormalizeNonNegative(ref int _level)
+    {
+        if (_level >= 0)
+            return false;
+
+        _level = 0;
+        return true;
     }
 
     #endregion
@@ -1121,6 +1466,19 @@ private class ProgressData : IProgressDataOperations
         ClearEquipmentUpgrades();
     }
 
+    int IProgressDataOperations.GetGlobalUpgradeLevel(
+        GlobalUpgradeType _upgradeType)
+    {
+        return GetGlobalUpgradeLevel(_upgradeType);
+    }
+
+    bool IProgressDataOperations.TrySetGlobalUpgradeLevel(
+        GlobalUpgradeType _upgradeType,
+        int _level)
+    {
+        return TrySetGlobalUpgradeLevel(_upgradeType, _level);
+    }
+
     bool IProgressDataOperations.SetSaveVersion(int _version)
     {
         return SetSaveVersion(_version);
@@ -1178,6 +1536,7 @@ private class ProgressData : IProgressDataOperations
         _hasLoaded = true;
         EnsureEquipmentData();
         NormalizeUpgradeData();
+        NormalizeGlobalUpgradeData();
 
         if (!File.Exists(SaveFilePath))
         {
@@ -1211,6 +1570,7 @@ private class ProgressData : IProgressDataOperations
             changed |= MigrateToCurrentVersion();
             changed |= EnsureEquipmentData();
             changed |= NormalizeUpgradeData();
+            changed |= NormalizeGlobalUpgradeData();
 
             if (changed)
                 Save();
@@ -1253,6 +1613,12 @@ private class ProgressData : IProgressDataOperations
             if (DataOperations.SaveVersion == 2)
             {
                 changed |= DataOperations.SetSaveVersion(3);
+                continue;
+            }
+
+            if (DataOperations.SaveVersion == 3)
+            {
+                changed |= DataOperations.SetSaveVersion(4);
                 continue;
             }
 
@@ -1350,6 +1716,43 @@ private class ProgressData : IProgressDataOperations
         return true;
     }
 
+    private bool NormalizeGlobalUpgradeData()
+    {
+        if (_data == null)
+            return false;
+
+        EnsureGlobalUpgradeBalance();
+        bool changed = false;
+
+        foreach (GlobalUpgradeType upgradeType in Enum.GetValues(typeof(GlobalUpgradeType)))
+        {
+            if (!TryGetGlobalUpgradeDefinition(
+                    upgradeType,
+                    out GlobalUpgradeDefinition definition))
+            {
+                continue;
+            }
+
+            int rawLevel = DataOperations.GetGlobalUpgradeLevel(upgradeType);
+            int normalizedLevel = Mathf.Clamp(
+                rawLevel,
+                0,
+                definition.MaximumLevel
+            );
+
+            if (rawLevel == normalizedLevel)
+                continue;
+
+            DataOperations.TrySetGlobalUpgradeLevel(
+                upgradeType,
+                normalizedLevel
+            );
+            changed = true;
+        }
+
+        return changed;
+    }
+
     private bool AddDefaultEquipment(EquipmentType _type)
     {
         if (!_equipmentCatalog.TryGetDefault(_type, out EquipmentItemDefinition item))
@@ -1408,6 +1811,70 @@ private class ProgressData : IProgressDataOperations
         return false;
     }
 
+    private bool EnsureGlobalUpgradeBalance()
+    {
+        if (_globalUpgradeBalance == null)
+            _globalUpgradeBalance = new GlobalUpgradeBalance();
+
+        return _globalUpgradeBalance.EnsureDefaultDefinitions();
+    }
+
+    private bool TryGetGlobalUpgradeDefinition(
+        GlobalUpgradeType _upgradeType,
+        out GlobalUpgradeDefinition _definition)
+    {
+        EnsureGlobalUpgradeBalance();
+        return _globalUpgradeBalance.TryGetDefinition(
+            _upgradeType,
+            out _definition
+        );
+    }
+
+    private void ResolveGlobalUpgradeTargets()
+    {
+        if (_playerMovement == null)
+            _playerMovement = FindFirstObjectByType<PlayerMovement>();
+
+        if (_playerEnergy == null)
+            _playerEnergy = FindFirstObjectByType<PlayerEnergy>();
+
+        if (_terrainChunkManager == null)
+            _terrainChunkManager = FindFirstObjectByType<TerrainChunkManager>();
+    }
+
+    private void ApplyGlobalUpgradeEffects(bool _refillEnergy)
+    {
+        if (!EnsureLoaded())
+            return;
+
+        ResolveGlobalUpgradeTargets();
+
+        if (_playerMovement != null)
+        {
+            _playerMovement.ApplyGlobalUpgrades(
+                GetGlobalUpgradeMultiplier(GlobalUpgradeType.SpeedLimit),
+                GetGlobalUpgradeMultiplier(GlobalUpgradeType.SteeringSpeed),
+                GetGlobalUpgradeFlatBonus(GlobalUpgradeType.DashCount)
+            );
+        }
+
+        if (_playerEnergy != null)
+        {
+            _playerEnergy.ApplyMaximumEnergyMultiplier(
+                GetGlobalUpgradeMultiplier(GlobalUpgradeType.MaximumEnergy),
+                _refillEnergy
+            );
+        }
+
+        if (_terrainChunkManager != null)
+        {
+            _terrainChunkManager.ApplyLuckMultiplier(
+                GetGlobalUpgradeMultiplier(GlobalUpgradeType.Luck),
+                false
+            );
+        }
+    }
+
     private bool TrySpendMoney(long _amount)
     {
         return _data != null && DataOperations.TrySpendMoney(_amount);
@@ -1438,7 +1905,7 @@ private class ProgressData : IProgressDataOperations
         if (_result.Depth < 0f || float.IsNaN(_result.Depth) || float.IsInfinity(_result.Depth))
             return false;
 
-        return _result.DugBlocks >= 0;
+        return _result.DugBlocks >= 0 && _result.CollectedMoney >= 0;
     }
 
     private bool EnsureLoaded()
@@ -1486,6 +1953,24 @@ private class ProgressData : IProgressDataOperations
         );
     }
 
+    private GlobalUpgradePurchaseResult CreateGlobalUpgradeFailure(
+        GlobalUpgradeType _upgradeType,
+        GlobalUpgradePurchaseFailureReason _reason,
+        int _previousLevel,
+        bool _persisted)
+    {
+        return new GlobalUpgradePurchaseResult(
+            false,
+            _reason,
+            _upgradeType,
+            _previousLevel,
+            _previousLevel,
+            0,
+            TotalMoney,
+            _persisted
+        );
+    }
+
     private EquipResult CreateEquipFailure(
         string _itemId,
         EquipFailureReason _reason)
@@ -1517,6 +2002,7 @@ private class ProgressData : IProgressDataOperations
         _data = CreateDefaultData();
         EnsureEquipmentData();
         NormalizeUpgradeData();
+        NormalizeGlobalUpgradeData();
         Save();
         ProgressChanged?.Invoke();
     }
@@ -1595,6 +2081,56 @@ private class ProgressData : IProgressDataOperations
 
         Save();
         ProgressChanged?.Invoke();
+    }
+
+    [ContextMenu("Development/Buy Speed Limit Upgrade")]
+    private void BuySpeedLimitUpgradeForDevelopment()
+    {
+        BuyGlobalUpgradeForDevelopment(GlobalUpgradeType.SpeedLimit);
+    }
+
+    [ContextMenu("Development/Buy Steering Speed Upgrade")]
+    private void BuySteeringSpeedUpgradeForDevelopment()
+    {
+        BuyGlobalUpgradeForDevelopment(GlobalUpgradeType.SteeringSpeed);
+    }
+
+    [ContextMenu("Development/Buy Maximum Energy Upgrade")]
+    private void BuyMaximumEnergyUpgradeForDevelopment()
+    {
+        BuyGlobalUpgradeForDevelopment(GlobalUpgradeType.MaximumEnergy);
+    }
+
+    [ContextMenu("Development/Buy Luck Upgrade")]
+    private void BuyLuckUpgradeForDevelopment()
+    {
+        BuyGlobalUpgradeForDevelopment(GlobalUpgradeType.Luck);
+    }
+
+    [ContextMenu("Development/Buy Money Multiplier Upgrade")]
+    private void BuyMoneyMultiplierUpgradeForDevelopment()
+    {
+        BuyGlobalUpgradeForDevelopment(GlobalUpgradeType.MoneyMultiplier);
+    }
+
+    [ContextMenu("Development/Buy Dash Count Upgrade")]
+    private void BuyDashCountUpgradeForDevelopment()
+    {
+        BuyGlobalUpgradeForDevelopment(GlobalUpgradeType.DashCount);
+    }
+
+    private void BuyGlobalUpgradeForDevelopment(
+        GlobalUpgradeType _upgradeType)
+    {
+        GlobalUpgradePurchaseResult result =
+            TryPurchaseGlobalUpgrade(_upgradeType);
+
+        Debug.Log(
+            result.Succeeded
+                ? $"{_upgradeType} upgraded to level {result.NewLevel}."
+                : $"{_upgradeType} upgrade failed: {result.FailureReason}.",
+            this
+        );
     }
 #endif
 
