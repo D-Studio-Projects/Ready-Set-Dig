@@ -74,7 +74,10 @@ public class RunEvents : MonoBehaviour
             _drill.DigCompleted += HandleDigCompleted;
 
         if (_playerMovement != null && _runStatistics != null)
+        {
             _playerMovement.DistanceMovedDown += _runStatistics.AddDistance;
+            _playerMovement.DashStarted += _runStatistics.IncrementDashCount;
+        }
     }
 
     private void UnsubscribeEvents()
@@ -98,7 +101,10 @@ public class RunEvents : MonoBehaviour
             _drill.DigCompleted -= HandleDigCompleted;
 
         if (_playerMovement != null && _runStatistics != null)
+        {
             _playerMovement.DistanceMovedDown -= _runStatistics.AddDistance;
+            _playerMovement.DashStarted -= _runStatistics.IncrementDashCount;
+        }
     }
 
     private void HandleLaunchStarted(float _launchForce)
@@ -122,7 +128,7 @@ public class RunEvents : MonoBehaviour
     private void HandleDigCompleted(DigResult _result)
     {
         if (_runStatistics != null)
-            _runStatistics.AddDiggedBlocks(_result.TotalCells);
+            _runStatistics.AddDigResult(_result);
     }
 
     #endregion

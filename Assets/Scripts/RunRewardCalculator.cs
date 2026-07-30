@@ -37,13 +37,22 @@ public class RunRewardCalculator : MonoBehaviour
 
     public RunReward Calculate(RunResult _result)
     {
+        return Calculate(_result, 1f);
+    }
+
+    public RunReward Calculate(RunResult _result, float _moneyMultiplier)
+    {
         long moneyFromBlocks = MultiplyInteger(_result.DugBlocks, _moneyPerBlock);
         long moneyFromDepth = MultiplyDepth(_result.Depth, _moneyPerDepth);
         long scoreFromBlocks = MultiplyInteger(_result.DugBlocks, _scorePerBlock);
         long scoreFromDepth = MultiplyDepth(_result.Depth, _scorePerDepth);
+        long baseMoney = AddSaturated(
+            AddSaturated(moneyFromBlocks, moneyFromDepth),
+            _result.CollectedMoney
+        );
 
         return new RunReward(
-            AddSaturated(moneyFromBlocks, moneyFromDepth),
+            ApplyMoneyMultiplier(baseMoney, _moneyMultiplier),
             AddSaturated(scoreFromBlocks, scoreFromDepth)
         );
     }
@@ -83,6 +92,22 @@ public class RunRewardCalculator : MonoBehaviour
             return long.MaxValue;
 
         return _left + _right;
+    }
+
+    private long ApplyMoneyMultiplier(long _money, float _multiplier)
+    {
+        if (_money <= 0)
+            return 0;
+
+        if (float.IsNaN(_multiplier) || float.IsInfinity(_multiplier))
+            _multiplier = 1f;
+
+        decimal result = (decimal)_money * (decimal)Mathf.Max(1f, _multiplier);
+
+        if (result >= long.MaxValue)
+            return long.MaxValue;
+
+        return (long)Math.Floor(result);
     }
 
     #endregion

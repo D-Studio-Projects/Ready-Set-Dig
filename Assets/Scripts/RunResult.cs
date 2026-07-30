@@ -12,6 +12,7 @@ public readonly struct RunResult
     private readonly float _time;
     private readonly float _depth;
     private readonly int _dugBlocks;
+    private readonly long _collectedMoney;
     private readonly RunEndReason _endReason;
     private readonly int _runId;
 
@@ -24,6 +25,8 @@ public readonly struct RunResult
     public float Depth => _depth;
 
     public int DugBlocks => _dugBlocks;
+
+    public long CollectedMoney => _collectedMoney;
 
     public RunEndReason EndReason => _endReason;
 
@@ -47,11 +50,29 @@ public readonly struct RunResult
         float _depth,
         int _dugBlocks,
         RunEndReason _endReason)
+        : this(
+            _runId,
+            _time,
+            _depth,
+            _dugBlocks,
+            0,
+            _endReason)
+    {
+    }
+
+    public RunResult(
+        int _runId,
+        float _time,
+        float _depth,
+        int _dugBlocks,
+        long _collectedMoney,
+        RunEndReason _endReason)
     {
         this._runId = _runId;
         this._time = _time;
         this._depth = _depth;
         this._dugBlocks = _dugBlocks;
+        this._collectedMoney = _collectedMoney;
         this._endReason = _endReason;
     }
 
