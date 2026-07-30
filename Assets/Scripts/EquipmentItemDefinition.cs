@@ -237,12 +237,20 @@ public class EquipmentItemDefinition : ScriptableObject
             return false;
         }
 
+        long previousPrice = -1;
+
         for (int index = 0; index < MaximumUpgradeLevel; index++)
         {
             DrillUpgradeLevel upgrade = _drillUpgradeLevels[index];
 
-            if (upgrade == null || !upgrade.HasValidConfiguration())
+            if (upgrade == null ||
+                !upgrade.HasValidConfiguration() ||
+                upgrade.Price <= previousPrice)
+            {
                 return false;
+            }
+
+            previousPrice = upgrade.Price;
         }
 
         return true;
@@ -258,12 +266,20 @@ public class EquipmentItemDefinition : ScriptableObject
             return false;
         }
 
+        long previousPrice = -1;
+
         for (int index = 0; index < MaximumUpgradeLevel; index++)
         {
             LauncherUpgradeLevel upgrade = _launcherUpgradeLevels[index];
 
-            if (upgrade == null || !upgrade.HasValidConfiguration())
+            if (upgrade == null ||
+                !upgrade.HasValidConfiguration() ||
+                upgrade.Price <= previousPrice)
+            {
                 return false;
+            }
+
+            previousPrice = upgrade.Price;
         }
 
         return true;

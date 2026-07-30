@@ -9,16 +9,11 @@ public class LauncherUpgradeLevel
     [SerializeField]
     private long _price;
 
-    [SerializeField]
-    private float _launchForceMultiplier = 1f;
-
     #endregion
 
     #region Properties
 
     public long Price => _price;
-
-    public float LaunchForceMultiplier => _launchForceMultiplier;
 
     #endregion
 
@@ -34,10 +29,7 @@ public class LauncherUpgradeLevel
 
     public bool HasValidConfiguration()
     {
-        return _price >= 0 &&
-               _launchForceMultiplier > 0f &&
-               !float.IsNaN(_launchForceMultiplier) &&
-               !float.IsInfinity(_launchForceMultiplier);
+        return _price >= 0;
     }
 
     #endregion
