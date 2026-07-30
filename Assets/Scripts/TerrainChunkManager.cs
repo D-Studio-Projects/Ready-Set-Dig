@@ -28,6 +28,10 @@ public class TerrainChunkManager : MonoBehaviour
     [SerializeField]
     private TerrainDepthProfile _depthProfile;
 
+    [Header("Procedural Obstacles")]
+    [SerializeField]
+    private TerrainObstacleSpawnDefinition[] _obstacleDefinitions;
+
     [Header("Chunk Configuration")]
     [SerializeField]
     private int _chunkWidth = 64;
@@ -431,7 +435,8 @@ public class TerrainChunkManager : MonoBehaviour
             _pixelsPerUnit,
             _seed,
             _depthProfile,
-            _luckMultiplier
+            _luckMultiplier,
+            _obstacleDefinitions
         );
         _activeChunks.Add(_chunkIndex, chunk);
         return chunk;
