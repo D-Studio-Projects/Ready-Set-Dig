@@ -2288,6 +2288,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _runManager: {fileID: 777100003}
   _player: {fileID: 1203916541}
+  _ironMoneyPerCell: 2
+  _goldMoneyPerCell: 5
 --- !u!114 &777100005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3493,6 +3495,47 @@ MonoBehaviour:
   _runManager: {fileID: 777100003}
   _rewardCalculator: {fileID: 1202322360}
   _equipmentCatalog: {fileID: 11400000, guid: 83fe250a72f5f7c4bb37f79e826958fb, type: 2}
+  _playerMovement: {fileID: 1203916538}
+  _playerEnergy: {fileID: 1203916537}
+  _terrainChunkManager: {fileID: 700000003}
+  _globalUpgradeBalance:
+    _upgrades:
+    - _upgradeType: 0
+      _displayName: Limite de velocidade
+      _maximumLevel: 5
+      _basePrice: 100
+      _priceIncreasePercent: 10
+      _effectPerLevel: 0.1
+    - _upgradeType: 1
+      _displayName: Velocidade de curva
+      _maximumLevel: 5
+      _basePrice: 100
+      _priceIncreasePercent: 10
+      _effectPerLevel: 0.1
+    - _upgradeType: 2
+      _displayName: Energia maxima
+      _maximumLevel: 5
+      _basePrice: 100
+      _priceIncreasePercent: 10
+      _effectPerLevel: 0.1
+    - _upgradeType: 3
+      _displayName: Sorte
+      _maximumLevel: 5
+      _basePrice: 100
+      _priceIncreasePercent: 10
+      _effectPerLevel: 0.1
+    - _upgradeType: 4
+      _displayName: Multiplicador de dinheiro
+      _maximumLevel: 10
+      _basePrice: 100
+      _priceIncreasePercent: 10
+      _effectPerLevel: 0.1
+    - _upgradeType: 5
+      _displayName: Quantidade de dash
+      _maximumLevel: 5
+      _basePrice: 100
+      _priceIncreasePercent: 10
+      _effectPerLevel: 1
 --- !u!114 &1202322360
 MonoBehaviour:
   m_ObjectHideFlags: 0
