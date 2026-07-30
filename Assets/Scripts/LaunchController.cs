@@ -19,9 +19,13 @@ public class LaunchController : MonoBehaviour
     private readonly Dictionary<LauncherBehaviorId, ILaunchMinigame> _minigames =
         new Dictionary<LauncherBehaviorId, ILaunchMinigame>();
 
+    private readonly HashSet<LauncherBehaviorId> _fallbackWarnings =
+        new HashSet<LauncherBehaviorId>();
+
     private LauncherData _activeLauncherData;
     private ILaunchMinigame _activeMinigame;
     private int _activeLauncherLevel;
+    private bool _isUsingFallbackMinigame;
     private bool _hasLaunched;
     private bool _isInitialized;
 
@@ -32,6 +36,18 @@ public class LaunchController : MonoBehaviour
     public float CurrentCharge => _activeMinigame == null ? 0f : _activeMinigame.CurrentResult;
 
     public bool HasLaunched => _hasLaunched;
+
+    public LauncherBehaviorId RequestedBehaviorId =>
+        _activeLauncherData == null
+            ? LauncherBehaviorId.PowerBar
+            : _activeLauncherData.BehaviorId;
+
+    public LauncherBehaviorId ActiveBehaviorId =>
+        _activeMinigame == null
+            ? LauncherBehaviorId.PowerBar
+            : _activeMinigame.BehaviorId;
+
+    public bool IsUsingFallbackMinigame => _isUsingFallbackMinigame;
 
     public float ConfiguredLaunchForceMultiplier =>
         _activeLauncherData == null
@@ -131,6 +147,7 @@ public class LaunchController : MonoBehaviour
     private void RegisterMinigames()
     {
         _minigames.Clear();
+        _fallbackWarnings.Clear();
 
         if (_minigameBehaviors == null)
             return;
@@ -161,22 +178,49 @@ public class LaunchController : MonoBehaviour
     private void PrepareActiveMinigame()
     {
         _activeMinigame = null;
+        _isUsingFallbackMinigame = false;
 
         if (_activeLauncherData == null)
             return;
 
+        LauncherBehaviorId requestedBehavior = _activeLauncherData.BehaviorId;
+
+        if (_minigames.TryGetValue(
+                requestedBehavior,
+                out ILaunchMinigame configuredMinigame))
+        {
+            ActivateMinigame(configuredMinigame);
+            return;
+        }
+
         if (!_minigames.TryGetValue(
-                _activeLauncherData.BehaviorId,
-                out ILaunchMinigame minigame))
+                LauncherBehaviorId.PowerBar,
+                out ILaunchMinigame fallbackMinigame))
         {
             Debug.LogError(
-                $"No launch minigame is configured for {_activeLauncherData.BehaviorId}.",
+                $"No launch minigame is configured for {requestedBehavior}, and the PowerBar fallback is unavailable.",
                 this
             );
             return;
         }
 
-        _activeMinigame = minigame;
+        _isUsingFallbackMinigame = true;
+
+        if (requestedBehavior != LauncherBehaviorId.PowerBar &&
+            _fallbackWarnings.Add(requestedBehavior))
+        {
+            Debug.LogWarning(
+                $"{requestedBehavior} has no minigame yet. LaunchController will temporarily use PowerBar.",
+                this
+            );
+        }
+
+        ActivateMinigame(fallbackMinigame);
+    }
+
+    private void ActivateMinigame(ILaunchMinigame _minigame)
+    {
+        _activeMinigame = _minigame;
         _activeMinigame.ResetMinigame();
     }
 
