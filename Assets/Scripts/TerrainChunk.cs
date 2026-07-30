@@ -28,6 +28,7 @@ public class TerrainChunk : MonoBehaviour
     private int _startingDepth;
     private int _seed;
     private int _generation;
+    private float _luckMultiplier = 1f;
     private bool _isInitialized;
     private bool _isInPool = true;
 
@@ -81,12 +82,33 @@ public class TerrainChunk : MonoBehaviour
         int _seed,
         TerrainDepthProfile _depthProfile)
     {
+        Initialize(
+            _chunkIndex,
+            _width,
+            _height,
+            _pixelsPerUnit,
+            _seed,
+            _depthProfile,
+            1f
+        );
+    }
+
+    public void Initialize(
+        int _chunkIndex,
+        int _width,
+        int _height,
+        int _pixelsPerUnit,
+        int _seed,
+        TerrainDepthProfile _depthProfile,
+        float _luckMultiplier)
+    {
         this._chunkIndex = Mathf.Max(0, _chunkIndex);
         this._width = Mathf.Max(1, _width);
         this._height = Mathf.Max(1, _height);
         this._pixelsPerUnit = Mathf.Max(1, _pixelsPerUnit);
         this._seed = _seed;
         this._depthProfile = _depthProfile;
+        this._luckMultiplier = SanitizeLuckMultiplier(_luckMultiplier);
         _startingDepth = this._chunkIndex * this._height;
         _isInitialized = false;
         _isInPool = false;
@@ -116,6 +138,7 @@ public class TerrainChunk : MonoBehaviour
         _chunkIndex = -1;
         _startingDepth = 0;
         _seed = 0;
+        _luckMultiplier = 1f;
         _depthProfile = null;
         CellsChanged = null;
         Initialized = null;
@@ -275,7 +298,12 @@ public class TerrainChunk : MonoBehaviour
                 int globalDepth = GetGlobalDepth(y);
                 TerrainBase.TerrainType terrainType = _depthProfile == null
                     ? TerrainBase.TerrainType.Dirt
-                    : _depthProfile.GetTerrainType(x, globalDepth, _seed);
+                    : _depthProfile.GetTerrainType(
+                        x,
+                        globalDepth,
+                        _seed,
+                        _luckMultiplier
+                    );
 
                 _map[x, y] = (byte)terrainType;
             }
@@ -308,6 +336,14 @@ public class TerrainChunk : MonoBehaviour
         );
         _groundCollider.offset = Vector2.zero;
         _groundCollider.enabled = true;
+    }
+
+    private float SanitizeLuckMultiplier(float _multiplier)
+    {
+        if (float.IsNaN(_multiplier) || float.IsInfinity(_multiplier))
+            return 1f;
+
+        return Mathf.Max(1f, _multiplier);
     }
 
     #endregion

@@ -35,13 +35,33 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField]
     private float _rotationSmoothing = 10f;
 
+    [Header("Dash")]
+    [SerializeField]
+    [Min(0)]
+    private int _baseDashCount = 1;
+
+    [SerializeField]
+    [Min(1f)]
+    private float _dashSpeedMultiplier = 1.5f;
+
+    [SerializeField]
+    [Min(.01f)]
+    private float _dashDuration = .4f;
+
     private bool _isMoving;
     private bool _canMoveHorizontal;
+    private bool _isDashing;
     private float _currentFallSpeed;
     private float _currentHorizontalSpeed;
     private float _input;
     private float _launchForce;
     private float _lastTrackedY;
+    private float _speedLimitMultiplier = 1f;
+    private float _steeringSpeedMultiplier = 1f;
+    private float _dashTimeRemaining;
+    private int _maximumDashCount;
+    private int _remainingDashCount;
+    private int _movementStartedFrame = -1;
 
     #endregion
 
@@ -51,19 +71,36 @@ public class PlayerMovement : MonoBehaviour
 
     public bool IsMoving => _isMoving;
 
+    public bool IsDashing => _isDashing;
+
+    public int MaximumDashCount => _maximumDashCount;
+
+    public int RemainingDashCount => _remainingDashCount;
+
+    public float MaximumFallSpeed => GetMaximumFallSpeed();
+
     #endregion
 
     #region Events
 
     public event Action<float> DistanceMovedDown;
+    public event Action DashStarted;
+    public event Action DashEnded;
+    public event Action<int, int> DashCountChanged;
 
     #endregion
 
     #region Unity Methods
 
+    private void Awake()
+    {
+        _maximumDashCount = Mathf.Max(0, _baseDashCount);
+    }
+
     private void Start()
     {
         _lastTrackedY = transform.position.y;
+        ResetDashCharges();
 
         if (_rigidbody != null)
             _rigidbody.gravityScale = 0f;
@@ -75,6 +112,12 @@ public class PlayerMovement : MonoBehaviour
 
         if (_isMoving && _canMoveHorizontal)
             _input = Input.GetAxisRaw("Horizontal");
+
+        if (_isMoving &&
+            (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0)))
+        {
+            TryDash();
+        }
 
         TrackDownwardDistance();
     }
@@ -90,6 +133,7 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
+        UpdateDashTimer();
         MoveDown();
         MoveHorizontal();
         ApplyVelocity();
@@ -117,12 +161,29 @@ public class PlayerMovement : MonoBehaviour
         _launchForce = Mathf.Clamp01(_launchForceValue);
     }
 
+    public void ApplyGlobalUpgrades(
+        float _speedLimitMultiplier,
+        float _steeringSpeedMultiplier,
+        int _additionalDashCount)
+    {
+        this._speedLimitMultiplier = SanitizeMultiplier(_speedLimitMultiplier);
+        this._steeringSpeedMultiplier = SanitizeMultiplier(_steeringSpeedMultiplier);
+        _maximumDashCount = Mathf.Max(0, _baseDashCount + Mathf.Max(0, _additionalDashCount));
+        ResetDashCharges();
+    }
+
     public void StartMovement()
     {
         _isMoving = true;
         _canMoveHorizontal = true;
+        _movementStartedFrame = Time.frameCount;
         _lastTrackedY = transform.position.y;
-        _currentFallSpeed = Mathf.Lerp(_baseFallSpeed, _maxFallSpeed, _launchForce);
+        _currentFallSpeed = Mathf.Lerp(
+            _baseFallSpeed,
+            GetMaximumFallSpeed(),
+            _launchForce
+        );
+        ResetDashCharges();
 
         if (_rigidbody != null)
         {
@@ -135,6 +196,7 @@ public class PlayerMovement : MonoBehaviour
     {
         _isMoving = false;
         _canMoveHorizontal = false;
+        EndDash();
         _currentFallSpeed = 0f;
         _currentHorizontalSpeed = 0f;
         _lastTrackedY = transform.position.y;
@@ -154,7 +216,10 @@ public class PlayerMovement : MonoBehaviour
         _currentHorizontalSpeed = 0f;
         _input = 0f;
         _launchForce = 0f;
+        _movementStartedFrame = -1;
         _lastTrackedY = _position.y;
+        EndDash();
+        ResetDashCharges();
         transform.SetPositionAndRotation(_position, _rotation);
 
         if (_rigidbody != null)
@@ -165,16 +230,47 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    public bool TryDash()
+    {
+        if (!_isMoving ||
+            _isDashing ||
+            _remainingDashCount <= 0 ||
+            Time.frameCount <= _movementStartedFrame)
+        {
+            return false;
+        }
+
+        _remainingDashCount--;
+        _isDashing = true;
+        _dashTimeRemaining = Mathf.Max(.01f, _dashDuration);
+        _currentFallSpeed = Mathf.Max(
+            _currentFallSpeed,
+            GetMaximumFallSpeed() * Mathf.Max(1f, _dashSpeedMultiplier)
+        );
+
+        DashCountChanged?.Invoke(_remainingDashCount, _maximumDashCount);
+        DashStarted?.Invoke();
+        return true;
+    }
+
     #endregion
 
     #region Private Methods
 
     private void MoveDown()
     {
+        float targetSpeed = GetMaximumFallSpeed();
+
+        if (_isDashing)
+            targetSpeed *= Mathf.Max(1f, _dashSpeedMultiplier);
+
+        float speedChange = _currentFallSpeed > targetSpeed
+            ? _stopDeceleration
+            : _acceleration;
         _currentFallSpeed = Mathf.MoveTowards(
             _currentFallSpeed,
-            _maxFallSpeed,
-            _acceleration * UnityEngine.Time.fixedDeltaTime
+            targetSpeed,
+            speedChange * UnityEngine.Time.fixedDeltaTime
         );
     }
 
@@ -182,8 +278,10 @@ public class PlayerMovement : MonoBehaviour
     {
         _currentHorizontalSpeed = Mathf.MoveTowards(
             _currentHorizontalSpeed,
-            _input * _horizontalSpeed,
-            _horizontalAcceleration * UnityEngine.Time.fixedDeltaTime
+            _input * _horizontalSpeed * _steeringSpeedMultiplier,
+            _horizontalAcceleration *
+            _steeringSpeedMultiplier *
+            UnityEngine.Time.fixedDeltaTime
         );
     }
 
@@ -219,8 +317,54 @@ public class PlayerMovement : MonoBehaviour
         transform.rotation = Quaternion.Lerp(
             transform.rotation,
             targetRotation,
-            _rotationSmoothing * UnityEngine.Time.fixedDeltaTime
+            _rotationSmoothing *
+            _steeringSpeedMultiplier *
+            UnityEngine.Time.fixedDeltaTime
         );
+    }
+
+    private void UpdateDashTimer()
+    {
+        if (!_isDashing)
+            return;
+
+        _dashTimeRemaining -= UnityEngine.Time.fixedDeltaTime;
+
+        if (_dashTimeRemaining <= 0f)
+            EndDash();
+    }
+
+    private void EndDash()
+    {
+        if (!_isDashing)
+        {
+            _dashTimeRemaining = 0f;
+            return;
+        }
+
+        _isDashing = false;
+        _dashTimeRemaining = 0f;
+        DashEnded?.Invoke();
+    }
+
+    private void ResetDashCharges()
+    {
+        _maximumDashCount = Mathf.Max(0, _maximumDashCount);
+        _remainingDashCount = _maximumDashCount;
+        DashCountChanged?.Invoke(_remainingDashCount, _maximumDashCount);
+    }
+
+    private float GetMaximumFallSpeed()
+    {
+        return Mathf.Max(0f, _maxFallSpeed) * _speedLimitMultiplier;
+    }
+
+    private float SanitizeMultiplier(float _multiplier)
+    {
+        if (float.IsNaN(_multiplier) || float.IsInfinity(_multiplier))
+            return 1f;
+
+        return Mathf.Max(1f, _multiplier);
     }
 
     private void TrackDownwardDistance()

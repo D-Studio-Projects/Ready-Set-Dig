@@ -18,9 +18,15 @@ public class PlayerHud : MonoBehaviour
     [SerializeField]
     private Text _speedText;
 
+    [SerializeField]
+    private Text _dashText;
+
     [Header("Display")]
     [SerializeField]
     private string _speedSuffix = " m/s";
+
+    [SerializeField]
+    private string _dashFormat = "DASH: {0}/{1}";
 
     #endregion
 
@@ -40,6 +46,9 @@ public class PlayerHud : MonoBehaviour
         {
             _playerEnergy.EnergyChanged += UpdateEnergyBar;
         }
+
+        if (_playerMovement != null)
+            _playerMovement.DashCountChanged += UpdateDashText;
     }
 
     private void OnDisable()
@@ -48,6 +57,9 @@ public class PlayerHud : MonoBehaviour
         {
             _playerEnergy.EnergyChanged -= UpdateEnergyBar;
         }
+
+        if (_playerMovement != null)
+            _playerMovement.DashCountChanged -= UpdateDashText;
     }
 
     private void Start()
@@ -55,6 +67,14 @@ public class PlayerHud : MonoBehaviour
         if (_playerEnergy != null)
         {
             UpdateEnergyBar(_playerEnergy.CurrentEnergy, _playerEnergy.MaxEnergy);
+        }
+
+        if (_playerMovement != null)
+        {
+            UpdateDashText(
+                _playerMovement.RemainingDashCount,
+                _playerMovement.MaximumDashCount
+            );
         }
     }
 
@@ -77,6 +97,14 @@ public class PlayerHud : MonoBehaviour
 
         if (_speedText != null)
             _speedText.text = $"0.0{_speedSuffix}";
+
+        if (_playerMovement != null)
+        {
+            UpdateDashText(
+                _playerMovement.RemainingDashCount,
+                _playerMovement.MaximumDashCount
+            );
+        }
     }
 
     #endregion
@@ -90,6 +118,18 @@ public class PlayerHud : MonoBehaviour
 
         _energyBar.maxValue = maxEnergy;
         _energyBar.value = currentEnergy;
+    }
+
+    private void UpdateDashText(int _remainingDashes, int _maximumDashes)
+    {
+        if (_dashText == null)
+            return;
+
+        _dashText.text = string.Format(
+            _dashFormat,
+            Mathf.Max(0, _remainingDashes),
+            Mathf.Max(0, _maximumDashes)
+        );
     }
 
     #endregion

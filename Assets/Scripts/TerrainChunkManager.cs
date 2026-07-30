@@ -89,6 +89,7 @@ public class TerrainChunkManager : MonoBehaviour
     private float _worldSurfaceY;
     private float _worldCenterX;
     private float _chunkWorldHeight;
+    private float _luckMultiplier = 1f;
     private bool _isInitialized;
     private bool _hasLoggedPoolLimit;
 
@@ -103,6 +104,8 @@ public class TerrainChunkManager : MonoBehaviour
     public float ChunkWorldHeight => _chunkWorldHeight;
 
     public int Seed => _seed;
+
+    public float LuckMultiplier => _luckMultiplier;
 
     #endregion
 
@@ -225,6 +228,16 @@ public class TerrainChunkManager : MonoBehaviour
         _worldCenterX = _player.position.x;
         EnsureChunksAroundPlayer();
         AlignUpcomingChunksWithPlayer();
+    }
+
+    public void ApplyLuckMultiplier(
+        float _multiplier,
+        bool _regenerateActiveTerrain)
+    {
+        _luckMultiplier = SanitizeLuckMultiplier(_multiplier);
+
+        if (_regenerateActiveTerrain && _isInitialized)
+            ResetTerrain(_seed);
     }
 
     #endregion
@@ -417,7 +430,8 @@ public class TerrainChunkManager : MonoBehaviour
             _chunkHeight,
             _pixelsPerUnit,
             _seed,
-            _depthProfile
+            _depthProfile,
+            _luckMultiplier
         );
         _activeChunks.Add(_chunkIndex, chunk);
         return chunk;
@@ -528,6 +542,14 @@ public class TerrainChunkManager : MonoBehaviour
             return _player.position.x;
 
         return _worldCenterX;
+    }
+
+    private float SanitizeLuckMultiplier(float _multiplier)
+    {
+        if (float.IsNaN(_multiplier) || float.IsInfinity(_multiplier))
+            return 1f;
+
+        return Mathf.Max(1f, _multiplier);
     }
 
     #endregion

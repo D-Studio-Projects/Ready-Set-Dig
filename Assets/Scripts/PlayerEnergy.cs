@@ -6,6 +6,10 @@ public class PlayerEnergy : MonoBehaviour
 {
     #region Fields
 
+    [Header("References")]
+    [SerializeField]
+    private PlayerMovement _playerMovement;
+
     [Header("Energy")]
     [SerializeField]
     private float _maxEnergy = 100f;
@@ -25,16 +29,17 @@ public class PlayerEnergy : MonoBehaviour
 
     private readonly Dictionary<Collider2D, float> _obstacleContacts = new Dictionary<Collider2D, float>();
     private float _currentEnergy;
+    private float _maximumEnergyMultiplier = 1f;
 
     #endregion
 
     #region Properties
 
-    public float MaxEnergy => _maxEnergy;
+    public float MaxEnergy => Mathf.Max(0f, _maxEnergy) * _maximumEnergyMultiplier;
 
     public float CurrentEnergy => _currentEnergy;
 
-    public float Normalized => _maxEnergy <= 0f ? 0f : _currentEnergy / _maxEnergy;
+    public float Normalized => MaxEnergy <= 0f ? 0f : _currentEnergy / MaxEnergy;
 
     public bool HasEnergy => _currentEnergy > 0f;
 
@@ -55,6 +60,9 @@ public class PlayerEnergy : MonoBehaviour
 
     private void Awake()
     {
+        if (_playerMovement == null)
+            _playerMovement = GetComponentInParent<PlayerMovement>();
+
         ResetEnergy();
     }
 
@@ -83,8 +91,25 @@ public class PlayerEnergy : MonoBehaviour
 
     public void ResetEnergy()
     {
-        _currentEnergy = _maxEnergy;
-        EnergyChanged?.Invoke(_currentEnergy, _maxEnergy);
+        _currentEnergy = MaxEnergy;
+        EnergyChanged?.Invoke(_currentEnergy, MaxEnergy);
+    }
+
+    public void ApplyMaximumEnergyMultiplier(
+        float _multiplier,
+        bool _refillEnergy)
+    {
+        float previousNormalized = Normalized;
+        _maximumEnergyMultiplier = SanitizeMultiplier(_multiplier);
+
+        if (_refillEnergy)
+        {
+            ResetEnergy();
+            return;
+        }
+
+        _currentEnergy = Mathf.Clamp(previousNormalized * MaxEnergy, 0f, MaxEnergy);
+        EnergyChanged?.Invoke(_currentEnergy, MaxEnergy);
     }
 
     public bool ConsumeDigging(float deltaTime)
@@ -100,7 +125,9 @@ public class PlayerEnergy : MonoBehaviour
         if (energyConsumption <= 0f || deltaTime <= 0f)
             return true;
 
-        float obstacleMultiplier = GetCurrentObstacleMultiplier();
+        float obstacleMultiplier = _playerMovement != null && _playerMovement.IsDashing
+            ? 1f
+            : GetCurrentObstacleMultiplier();
         Consume(energyConsumption * obstacleMultiplier * deltaTime);
         return HasEnergy;
     }
@@ -111,7 +138,7 @@ public class PlayerEnergy : MonoBehaviour
             return;
 
         _currentEnergy = Mathf.Max(0f, _currentEnergy - amount);
-        EnergyChanged?.Invoke(_currentEnergy, _maxEnergy);
+        EnergyChanged?.Invoke(_currentEnergy, MaxEnergy);
 
         if (_currentEnergy <= 0f)
         {
@@ -169,6 +196,14 @@ public class PlayerEnergy : MonoBehaviour
     private bool IsInLayerMask(int layer, LayerMask layerMask)
     {
         return (layerMask.value & (1 << layer)) != 0;
+    }
+
+    private float SanitizeMultiplier(float _multiplier)
+    {
+        if (float.IsNaN(_multiplier) || float.IsInfinity(_multiplier))
+            return 1f;
+
+        return Mathf.Max(1f, _multiplier);
     }
 
     #endregion

@@ -82,6 +82,16 @@ public class TerrainDepthProfile : ScriptableObject
 
     public TerrainBase.TerrainType GetTerrainType(int _globalX, int _depth, int _seed)
     {
+        return GetTerrainType(_globalX, _depth, _seed, 1f);
+    }
+
+    public TerrainBase.TerrainType GetTerrainType(
+        int _globalX,
+        int _depth,
+        int _seed,
+        float _luckMultiplier)
+    {
+        float luckMultiplier = SanitizeLuckMultiplier(_luckMultiplier);
         float dirtGate = GetNoise(_globalX, _depth, _seed, .017f, 53.71f);
 
         if (dirtGate < Mathf.Clamp01(_minimumDirtRatio))
@@ -93,7 +103,8 @@ public class TerrainDepthProfile : ScriptableObject
             _depth,
             _seed,
             Mathf.Max(0, _fallbackStoneStartDepth),
-            _stoneWeight
+            _stoneWeight,
+            1f
         );
         float ironWeight = GetResourceWeight(
             TerrainBase.TerrainType.Iron,
@@ -101,7 +112,8 @@ public class TerrainDepthProfile : ScriptableObject
             _depth,
             _seed,
             Mathf.Max(0, _fallbackIronStartDepth),
-            _ironWeight
+            _ironWeight,
+            luckMultiplier
         );
         float goldWeight = GetResourceWeight(
             TerrainBase.TerrainType.Gold,
@@ -109,7 +121,8 @@ public class TerrainDepthProfile : ScriptableObject
             _depth,
             _seed,
             Mathf.Max(0, _fallbackGoldStartDepth),
-            _goldWeight
+            _goldWeight,
+            luckMultiplier
         );
         float totalWeight = stoneWeight + ironWeight + goldWeight;
 
@@ -137,7 +150,8 @@ public class TerrainDepthProfile : ScriptableObject
         int _depth,
         int _seed,
         int _fallbackStartDepth,
-        float _baseWeight)
+        float _baseWeight,
+        float _weightMultiplier)
     {
         bool hasConfiguredLayer = false;
         float strongestInfluence = 0f;
@@ -170,11 +184,21 @@ public class TerrainDepthProfile : ScriptableObject
         }
 
         if (hasConfiguredLayer)
-            return Mathf.Max(0f, _baseWeight) * strongestInfluence;
+            return Mathf.Max(0f, _baseWeight) *
+                   strongestInfluence *
+                   Mathf.Max(0f, _weightMultiplier);
 
         return _depth >= _fallbackStartDepth
-            ? Mathf.Max(0f, _baseWeight)
+            ? Mathf.Max(0f, _baseWeight) * Mathf.Max(0f, _weightMultiplier)
             : 0f;
+    }
+
+    private float SanitizeLuckMultiplier(float _multiplier)
+    {
+        if (float.IsNaN(_multiplier) || float.IsInfinity(_multiplier))
+            return 1f;
+
+        return Mathf.Max(1f, _multiplier);
     }
 
     private float GetNoise(
