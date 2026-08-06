@@ -228,8 +228,7 @@ public class ShopUI : MonoBehaviour
         ApplySectionVisibility();
         UpdateSelectedProduct();
 
-        if (_startRunButton != null)
-            _startRunButton.interactable = !_isProcessing;
+        UpdateStartRunButton();
     }
 
     public void ShowEquipmentSection()
@@ -395,21 +394,26 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        _isProcessing = true;
-        SetOperationButtons(false);
-        PurchaseResult result = _progressService == null
-            ? new PurchaseResult(
-                false,
-                PurchaseFailureReason.NotLoaded,
-                _selectedItemId,
-                0,
-                0,
-                false
-            )
-            : _progressService.TryPurchaseEquipment(_selectedItemId);
-        ShowPurchaseFeedback(result);
-        _isProcessing = false;
-        Refresh();
+        BeginOperation();
+
+        try
+        {
+            PurchaseResult result = _progressService == null
+                ? new PurchaseResult(
+                    false,
+                    PurchaseFailureReason.NotLoaded,
+                    _selectedItemId,
+                    0,
+                    0,
+                    false
+                )
+                : _progressService.TryPurchaseEquipment(_selectedItemId);
+            ShowPurchaseFeedback(result);
+        }
+        finally
+        {
+            EndOperation();
+        }
     }
 
     private void HandleEquipClicked()
@@ -421,21 +425,26 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        _isProcessing = true;
-        SetOperationButtons(false);
-        EquipResult result = _progressService == null
-            ? new EquipResult(
-                false,
-                EquipFailureReason.NotLoaded,
-                _selectedItemId,
-                EquipmentType.Drill,
-                false,
-                false
-            )
-            : _progressService.TryEquipEquipment(_selectedItemId);
-        ShowEquipFeedback(result);
-        _isProcessing = false;
-        Refresh();
+        BeginOperation();
+
+        try
+        {
+            EquipResult result = _progressService == null
+                ? new EquipResult(
+                    false,
+                    EquipFailureReason.NotLoaded,
+                    _selectedItemId,
+                    EquipmentType.Drill,
+                    false,
+                    false
+                )
+                : _progressService.TryEquipEquipment(_selectedItemId);
+            ShowEquipFeedback(result);
+        }
+        finally
+        {
+            EndOperation();
+        }
     }
 
     private void HandleUpgradeClicked()
@@ -457,23 +466,28 @@ public class ShopUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(_selectedItemId))
             return;
 
-        _isProcessing = true;
-        SetOperationButtons(false);
-        UpgradePurchaseResult result = _progressService == null
-            ? new UpgradePurchaseResult(
-                false,
-                UpgradePurchaseFailureReason.ProgressNotLoaded,
-                _selectedItemId,
-                0,
-                0,
-                0,
-                0,
-                false
-            )
-            : _progressService.TryPurchaseEquipmentUpgrade(_selectedItemId);
-        ShowUpgradeFeedback(result);
-        _isProcessing = false;
-        Refresh();
+        BeginOperation();
+
+        try
+        {
+            UpgradePurchaseResult result = _progressService == null
+                ? new UpgradePurchaseResult(
+                    false,
+                    UpgradePurchaseFailureReason.ProgressNotLoaded,
+                    _selectedItemId,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false
+                )
+                : _progressService.TryPurchaseEquipmentUpgrade(_selectedItemId);
+            ShowUpgradeFeedback(result);
+        }
+        finally
+        {
+            EndOperation();
+        }
     }
 
     private void PurchaseSelectedGlobalUpgrade()
@@ -481,23 +495,28 @@ public class ShopUI : MonoBehaviour
         if (!_hasSelectedGlobalUpgrade)
             return;
 
-        _isProcessing = true;
-        SetOperationButtons(false);
-        GlobalUpgradePurchaseResult result = _progressService == null
-            ? new GlobalUpgradePurchaseResult(
-                false,
-                GlobalUpgradePurchaseFailureReason.ProgressNotLoaded,
-                _selectedGlobalUpgradeType,
-                0,
-                0,
-                0,
-                0,
-                false
-            )
-            : _progressService.TryPurchaseGlobalUpgrade(_selectedGlobalUpgradeType);
-        ShowGlobalUpgradeFeedback(result);
-        _isProcessing = false;
-        Refresh();
+        BeginOperation();
+
+        try
+        {
+            GlobalUpgradePurchaseResult result = _progressService == null
+                ? new GlobalUpgradePurchaseResult(
+                    false,
+                    GlobalUpgradePurchaseFailureReason.ProgressNotLoaded,
+                    _selectedGlobalUpgradeType,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false
+                )
+                : _progressService.TryPurchaseGlobalUpgrade(_selectedGlobalUpgradeType);
+            ShowGlobalUpgradeFeedback(result);
+        }
+        finally
+        {
+            EndOperation();
+        }
     }
 
     private void HandleStartRunClicked()
@@ -505,17 +524,19 @@ public class ShopUI : MonoBehaviour
         if (_isProcessing)
             return;
 
-        _isProcessing = true;
-        SetOperationButtons(false);
-
         if (NewRunRequested == null)
-        {
-            _isProcessing = false;
-            Refresh();
             return;
-        }
 
-        NewRunRequested.Invoke();
+        BeginOperation();
+
+        try
+        {
+            NewRunRequested.Invoke();
+        }
+        finally
+        {
+            EndOperation();
+        }
     }
 
     private void ConfigureEquipmentViews()
@@ -957,7 +978,21 @@ public class ShopUI : MonoBehaviour
         ClearUpgradeDetails();
     }
 
-    private void SetOperationButtons(bool _interactable)
+    private void BeginOperation()
+    {
+        _isProcessing = true;
+        SetTransactionControls(false);
+    }
+
+    private void EndOperation()
+    {
+        _isProcessing = false;
+
+        if (_isVisible)
+            Refresh();
+    }
+
+    private void SetTransactionControls(bool _interactable)
     {
         if (_buyButton != null)
             _buyButton.interactable = _interactable;
@@ -968,14 +1003,17 @@ public class ShopUI : MonoBehaviour
         if (_upgradeButton != null)
             _upgradeButton.interactable = _interactable;
 
-        if (_startRunButton != null)
-            _startRunButton.interactable = _interactable;
-
         if (_equipmentTabButton != null)
             _equipmentTabButton.interactable = _interactable;
 
         if (_globalUpgradesTabButton != null)
             _globalUpgradesTabButton.interactable = _interactable;
+    }
+
+    private void UpdateStartRunButton()
+    {
+        if (_startRunButton != null)
+            _startRunButton.interactable = _isVisible;
     }
 
     private void ShowMerchantText(string _message)
