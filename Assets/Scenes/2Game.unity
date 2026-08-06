@@ -2306,7 +2306,7 @@ MonoBehaviour:
   _launchController: {fileID: 1203916534}
   _playerMovement: {fileID: 1203916538}
   _playerEnergy: {fileID: 1203916537}
-  _drill: {fileID: 3986552190034809614, guid: 4c2c164b0d8835443b9de192b14e0f34, type: 3}
+  _drill: {fileID: 828930356}
   _runStatistics: {fileID: 777100004}
 --- !u!1 &813535591
 GameObject:
