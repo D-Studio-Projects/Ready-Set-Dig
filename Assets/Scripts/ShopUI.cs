@@ -27,29 +27,42 @@ public class ShopUI : MonoBehaviour
 
     [Header("Sections")]
     [SerializeField]
-    private ShopSection _defaultSection = ShopSection.Equipment;
+    private ShopSection _defaultSection = ShopSection.Tools;
 
     [SerializeField]
-    private Button _equipmentTabButton;
+    private Button _toolsTabButton;
 
     [SerializeField]
-    private Button _globalUpgradesTabButton;
+    private Button _launchersTabButton;
 
     [SerializeField]
-    private GameObject _equipmentSectionRoot;
+    private Button _upgradesTabButton;
 
     [SerializeField]
-    private GameObject _globalUpgradeSectionRoot;
+    private GameObject _toolsSectionRoot;
+
+    [SerializeField]
+    private GameObject _launchersSectionRoot;
+
+    [SerializeField]
+    private GameObject _upgradesSectionRoot;
 
     [SerializeField]
     private Text _sectionTitleText;
 
-    [Header("Equipment List")]
+    [Header("Tool List")]
     [SerializeField]
-    private Transform _itemContainer;
+    private Transform _toolContainer;
 
     [SerializeField]
-    private ShopItemView[] _itemViews;
+    private ShopItemView[] _toolViews;
+
+    [Header("Launcher List")]
+    [SerializeField]
+    private Transform _launcherContainer;
+
+    [SerializeField]
+    private ShopItemView[] _launcherViews;
 
     [Header("Global Upgrade List")]
     [SerializeField]
@@ -156,19 +169,21 @@ public class ShopUI : MonoBehaviour
         if (_startRunButton != null)
             _startRunButton.onClick.AddListener(HandleStartRunClicked);
 
-        if (_equipmentTabButton != null)
-            _equipmentTabButton.onClick.AddListener(ShowEquipmentSection);
+        if (_toolsTabButton != null)
+            _toolsTabButton.onClick.AddListener(ShowToolsSection);
 
-        if (_globalUpgradesTabButton != null)
-            _globalUpgradesTabButton.onClick.AddListener(ShowGlobalUpgradesSection);
+        if (_launchersTabButton != null)
+            _launchersTabButton.onClick.AddListener(ShowLaunchersSection);
+
+        if (_upgradesTabButton != null)
+            _upgradesTabButton.onClick.AddListener(ShowUpgradesSection);
 
         SubscribeItemViews(true);
     }
 
     private void OnDisable()
     {
-        if (_progressService != null)
-            _progressService.ProgressChanged -= HandleProgressChanged;
+        if (_progressService != null) _progressService.ProgressChanged -= HandleProgressChanged;
 
         if (_buyButton != null)
             _buyButton.onClick.RemoveListener(HandleBuyClicked);
@@ -182,11 +197,14 @@ public class ShopUI : MonoBehaviour
         if (_startRunButton != null)
             _startRunButton.onClick.RemoveListener(HandleStartRunClicked);
 
-        if (_equipmentTabButton != null)
-            _equipmentTabButton.onClick.RemoveListener(ShowEquipmentSection);
+        if (_toolsTabButton != null)
+            _toolsTabButton.onClick.RemoveListener(ShowToolsSection);
 
-        if (_globalUpgradesTabButton != null)
-            _globalUpgradesTabButton.onClick.RemoveListener(ShowGlobalUpgradesSection);
+        if (_launchersTabButton != null)
+            _launchersTabButton.onClick.RemoveListener(ShowLaunchersSection);
+
+        if (_upgradesTabButton != null)
+            _upgradesTabButton.onClick.RemoveListener(ShowUpgradesSection);
 
         SubscribeItemViews(false);
     }
@@ -194,7 +212,6 @@ public class ShopUI : MonoBehaviour
     #endregion
 
     #region Public Methods
-
     public void Open()
     {
         _isVisible = true;
@@ -231,26 +248,37 @@ public class ShopUI : MonoBehaviour
         UpdateStartRunButton();
     }
 
-    public void ShowEquipmentSection()
+    public void ShowToolsSection()
     {
-        SwitchSection(ShopSection.Equipment);
+        SwitchSection(ShopSection.Tools);
     }
 
-    public void ShowGlobalUpgradesSection()
+    public void ShowLaunchersSection()
     {
-        SwitchSection(ShopSection.GlobalUpgrades);
+        SwitchSection(ShopSection.Launchers);
+    }
+
+    public void ShowUpgradesSection()
+    {
+        SwitchSection(ShopSection.Upgrades);
     }
 
     #endregion
 
     #region Private Methods
-
     private void ResolveItemViews()
     {
-        if ((_itemViews == null || _itemViews.Length == 0) &&
-            _itemContainer != null)
+        if ((_toolViews == null || _toolViews.Length == 0) &&
+            _toolContainer != null)
         {
-            _itemViews = _itemContainer.GetComponentsInChildren<ShopItemView>(true);
+            _toolViews = _toolContainer.GetComponentsInChildren<ShopItemView>(true);
+        }
+
+        if ((_launcherViews == null || _launcherViews.Length == 0) &&
+            _launcherContainer != null)
+        {
+            _launcherViews =
+                _launcherContainer.GetComponentsInChildren<ShopItemView>(true);
         }
 
         if ((_globalUpgradeViews == null || _globalUpgradeViews.Length == 0) &&
@@ -263,25 +291,8 @@ public class ShopUI : MonoBehaviour
 
     private void SubscribeItemViews(bool _subscribe)
     {
-        if (_itemViews != null)
-        {
-            foreach (ShopItemView itemView in _itemViews)
-            {
-                if (itemView == null)
-                    continue;
-
-                if (_subscribe)
-                {
-                    itemView.Selected += HandleItemSelected;
-                    itemView.Hovered += HandleItemHovered;
-                }
-                else
-                {
-                    itemView.Selected -= HandleItemSelected;
-                    itemView.Hovered -= HandleItemHovered;
-                }
-            }
-        }
+        SubscribeEquipmentViews(_toolViews, _subscribe);
+        SubscribeEquipmentViews(_launcherViews, _subscribe);
 
         if (_globalUpgradeViews == null)
             return;
@@ -304,6 +315,31 @@ public class ShopUI : MonoBehaviour
         }
     }
 
+    private void SubscribeEquipmentViews(
+        ShopItemView[] _views,
+        bool _subscribe)
+    {
+        if (_views == null)
+            return;
+
+        foreach (ShopItemView itemView in _views)
+        {
+            if (itemView == null)
+                continue;
+
+            if (_subscribe)
+            {
+                itemView.Selected += HandleItemSelected;
+                itemView.Hovered += HandleItemHovered;
+            }
+            else
+            {
+                itemView.Selected -= HandleItemSelected;
+                itemView.Hovered -= HandleItemHovered;
+            }
+        }
+    }
+
     private void SwitchSection(ShopSection _section)
     {
         if (_isProcessing)
@@ -317,26 +353,30 @@ public class ShopUI : MonoBehaviour
 
     private void ApplySectionVisibility()
     {
-        bool showEquipment = _currentSection == ShopSection.Equipment;
+        bool showTools = _currentSection == ShopSection.Tools;
+        bool showLaunchers = _currentSection == ShopSection.Launchers;
+        bool showUpgrades = _currentSection == ShopSection.Upgrades;
 
-        if (_equipmentSectionRoot != null)
-            _equipmentSectionRoot.SetActive(showEquipment);
+        if (_toolsSectionRoot != null)
+            _toolsSectionRoot.SetActive(showTools);
 
-        if (_globalUpgradeSectionRoot != null)
-            _globalUpgradeSectionRoot.SetActive(!showEquipment);
+        if (_launchersSectionRoot != null)
+            _launchersSectionRoot.SetActive(showLaunchers);
 
-        if (_equipmentTabButton != null)
-            _equipmentTabButton.interactable = !_isProcessing && !showEquipment;
+        if (_upgradesSectionRoot != null)
+            _upgradesSectionRoot.SetActive(showUpgrades);
 
-        if (_globalUpgradesTabButton != null)
-            _globalUpgradesTabButton.interactable = !_isProcessing && showEquipment;
+        if (_toolsTabButton != null)
+            _toolsTabButton.interactable = !_isProcessing && !showTools;
+
+        if (_launchersTabButton != null)
+            _launchersTabButton.interactable = !_isProcessing && !showLaunchers;
+
+        if (_upgradesTabButton != null)
+            _upgradesTabButton.interactable = !_isProcessing && !showUpgrades;
 
         if (_sectionTitleText != null)
-        {
-            _sectionTitleText.text = showEquipment
-                ? "EQUIPAMENTOS"
-                : "UPGRADES";
-        }
+            _sectionTitleText.text = GetSectionTitle();
     }
 
     private void HandleProgressChanged()
@@ -346,18 +386,20 @@ public class ShopUI : MonoBehaviour
 
     private void HandleItemSelected(string _itemId)
     {
-        if (_isProcessing)
+        if (_isProcessing ||
+            !TryResolveEquipment(_itemId, out EquipmentItemDefinition item))
+        {
             return;
+        }
 
         _selectedItemId = _itemId;
-        _currentSection = ShopSection.Equipment;
+        _currentSection = item.EquipmentType == EquipmentType.Drill
+            ? ShopSection.Tools
+            : ShopSection.Launchers;
         ApplySectionVisibility();
         UpdateSelectedEquipment();
-
-        if (TryResolveEquipment(_itemId, out EquipmentItemDefinition item))
-            ShowMerchantText(item.Description);
+        ShowMerchantText(item.Description);
     }
-
     private void HandleItemHovered(string _itemId)
     {
         if (TryResolveEquipment(_itemId, out EquipmentItemDefinition item))
@@ -371,10 +413,9 @@ public class ShopUI : MonoBehaviour
 
         _selectedGlobalUpgradeType = _upgradeType;
         _hasSelectedGlobalUpgrade = true;
-        _currentSection = ShopSection.GlobalUpgrades;
+        _currentSection = ShopSection.Upgrades;
         ApplySectionVisibility();
         UpdateSelectedGlobalUpgrade();
-
         if (TryGetGlobalUpgradeInfo(_upgradeType, out GlobalUpgradeInfo info))
             ShowMerchantText(info.Description);
     }
@@ -388,7 +429,7 @@ public class ShopUI : MonoBehaviour
     private void HandleBuyClicked()
     {
         if (_isProcessing ||
-            _currentSection != ShopSection.Equipment ||
+            _currentSection == ShopSection.Upgrades ||
             string.IsNullOrWhiteSpace(_selectedItemId))
         {
             return;
@@ -419,7 +460,7 @@ public class ShopUI : MonoBehaviour
     private void HandleEquipClicked()
     {
         if (_isProcessing ||
-            _currentSection != ShopSection.Equipment ||
+            _currentSection == ShopSection.Upgrades ||
             string.IsNullOrWhiteSpace(_selectedItemId))
         {
             return;
@@ -452,7 +493,7 @@ public class ShopUI : MonoBehaviour
         if (_isProcessing)
             return;
 
-        if (_currentSection == ShopSection.GlobalUpgrades)
+        if (_currentSection == ShopSection.Upgrades)
         {
             PurchaseSelectedGlobalUpgrade();
             return;
@@ -541,22 +582,30 @@ public class ShopUI : MonoBehaviour
 
     private void ConfigureEquipmentViews()
     {
-        if (_itemViews == null)
+        ConfigureEquipmentViews(_toolViews, EquipmentType.Drill);
+        ConfigureEquipmentViews(_launcherViews, EquipmentType.Launcher);
+    }
+
+    private void ConfigureEquipmentViews(
+        ShopItemView[] _views,
+        EquipmentType _type)
+    {
+        if (_views == null)
             return;
 
         int catalogCount = _equipmentCatalog == null
             ? 0
-            : _equipmentCatalog.ItemCount;
+            : _equipmentCatalog.GetItemCount(_type);
 
-        for (int index = 0; index < _itemViews.Length; index++)
+        for (int index = 0; index < _views.Length; index++)
         {
-            ShopItemView itemView = _itemViews[index];
+            ShopItemView itemView = _views[index];
 
             if (itemView == null)
                 continue;
 
             EquipmentItemDefinition item = index < catalogCount
-                ? _equipmentCatalog.GetItemAt(index)
+                ? _equipmentCatalog.GetItemAt(_type, index)
                 : null;
 
             if (item == null)
@@ -579,7 +628,6 @@ public class ShopUI : MonoBehaviour
             );
         }
     }
-
     private void ConfigureGlobalUpgradeViews()
     {
         if (_globalUpgradeViews == null)
@@ -617,7 +665,7 @@ public class ShopUI : MonoBehaviour
 
     private void UpdateSelectedProduct()
     {
-        if (_currentSection == ShopSection.GlobalUpgrades)
+        if (_currentSection == ShopSection.Upgrades)
         {
             UpdateSelectedGlobalUpgrade();
             return;
@@ -778,20 +826,25 @@ public class ShopUI : MonoBehaviour
         if (_equipmentCatalog == null)
             return null;
 
+        EquipmentType sectionType = GetCurrentEquipmentType();
+
         if (TryResolveEquipment(
                 _selectedItemId,
-                out EquipmentItemDefinition selectedItem))
+                out EquipmentItemDefinition selectedItem) &&
+            selectedItem.EquipmentType == sectionType)
         {
             return selectedItem;
         }
 
-        for (int index = 0; index < _equipmentCatalog.ItemCount; index++)
+        int itemCount = _equipmentCatalog.GetItemCount(sectionType);
+
+        for (int index = 0; index < itemCount; index++)
         {
-            EquipmentItemDefinition item = _equipmentCatalog.GetItemAt(index);
+            EquipmentItemDefinition item =
+                _equipmentCatalog.GetItemAt(sectionType, index);
 
             if (item == null)
                 continue;
-
             _selectedItemId = item.Id;
             return item;
         }
@@ -799,6 +852,25 @@ public class ShopUI : MonoBehaviour
         return null;
     }
 
+    private EquipmentType GetCurrentEquipmentType()
+    {
+        return _currentSection == ShopSection.Launchers
+            ? EquipmentType.Launcher
+            : EquipmentType.Drill;
+    }
+
+    private string GetSectionTitle()
+    {
+        switch (_currentSection)
+        {
+            case ShopSection.Launchers:
+                return "LANCADORES";
+            case ShopSection.Upgrades:
+                return "UPGRADES";
+            default:
+                return "FERRAMENTAS";
+        }
+    }
     private bool TryResolveEquipment(
         string _itemId,
         out EquipmentItemDefinition _item)
@@ -1003,11 +1075,14 @@ public class ShopUI : MonoBehaviour
         if (_upgradeButton != null)
             _upgradeButton.interactable = _interactable;
 
-        if (_equipmentTabButton != null)
-            _equipmentTabButton.interactable = _interactable;
+        if (_toolsTabButton != null)
+            _toolsTabButton.interactable = _interactable;
 
-        if (_globalUpgradesTabButton != null)
-            _globalUpgradesTabButton.interactable = _interactable;
+        if (_launchersTabButton != null)
+            _launchersTabButton.interactable = _interactable;
+
+        if (_upgradesTabButton != null)
+            _upgradesTabButton.interactable = _interactable;
     }
 
     private void UpdateStartRunButton()

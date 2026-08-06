@@ -1,5 +1,6 @@
 public enum ShopSection
 {
-    Equipment,
-    GlobalUpgrades
+    Tools,
+    Launchers,
+    Upgrades
 }

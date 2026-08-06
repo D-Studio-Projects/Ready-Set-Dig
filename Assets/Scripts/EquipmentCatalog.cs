@@ -155,6 +155,46 @@ public class EquipmentCatalog : ScriptableObject
         return resolved == item ? item : null;
     }
 
+    public int GetItemCount(EquipmentType _type)
+    {
+        EnsureInitialized();
+        int count = 0;
+
+        if (_items == null)
+            return count;
+
+        foreach (EquipmentItemDefinition item in _items)
+        {
+            if (IsAvailableItemOfType(item, _type))
+                count++;
+        }
+
+        return count;
+    }
+
+    public EquipmentItemDefinition GetItemAt(EquipmentType _type, int _index)
+    {
+        EnsureInitialized();
+
+        if (_items == null || _index < 0)
+            return null;
+
+        int currentIndex = 0;
+
+        foreach (EquipmentItemDefinition item in _items)
+        {
+            if (!IsAvailableItemOfType(item, _type))
+                continue;
+
+            if (currentIndex == _index)
+                return item;
+
+            currentIndex++;
+        }
+
+        return null;
+    }
+
     public bool TryGetDefault(EquipmentType _type, out EquipmentItemDefinition _item)
     {
         EnsureInitialized();
@@ -170,6 +210,16 @@ public class EquipmentCatalog : ScriptableObject
     {
         if (!_isInitialized)
             Initialize();
+    }
+
+    private bool IsAvailableItemOfType(
+        EquipmentItemDefinition _item,
+        EquipmentType _type)
+    {
+        return _item != null &&
+               _item.EquipmentType == _type &&
+               _itemsById.TryGetValue(_item.Id, out EquipmentItemDefinition resolved) &&
+               resolved == _item;
     }
 
     private string GetDefaultId(EquipmentType _type)
