@@ -10,30 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 46250cbe4cea9e342a26971cf4d22c99, type: 3}
-  m_Name: DrillFast
+  m_Name: DrillRocket
   m_EditorClassIdentifier: 
-  _id: drill_fast
-  _displayName: Pa
+  _id: drill_rocket
+  _displayName: Foguete Broca
   _equipmentType: 0
-  _tier: 2
-  _price: 100
+  _tier: 4
+  _price: 800
   _icon: {fileID: 0}
-  _description: Escava mais rapido sem abandonar o controle durante a descida.
+  _description: A ferramenta de maior potencia para manter uma descida agressiva.
   _isDefault: 0
-  _drillToolData: {fileID: 11400000, guid: 92ff388b9e6bdca42a65d010d5f4c8e9, type: 2}
+  _drillToolData: {fileID: 11400000, guid: da9d41b28b32bab4083069c23363b01a, type: 2}
   _launcherData: {fileID: 0}
   _maximumUpgradeLevel: 3
   _drillUpgradeLevels:
-  - _price: 100
-    _digDamage: 1.1
-    _energyConsumption: 7.5
-    _digSpeed: 98
-  - _price: 200
-    _digDamage: 1.2
-    _energyConsumption: 7
-    _digSpeed: 106
-  - _price: 400
-    _digDamage: 1.3
-    _energyConsumption: 6.5
-    _digSpeed: 114
+  - _price: 800
+    _digDamage: 1.65
+    _energyConsumption: 6
+    _digSpeed: 165
+  - _price: 1600
+    _digDamage: 1.8
+    _energyConsumption: 5.5
+    _digSpeed: 180
+  - _price: 3200
+    _digDamage: 2
+    _energyConsumption: 5
+    _digSpeed: 200
   _launcherUpgradeLevels: []

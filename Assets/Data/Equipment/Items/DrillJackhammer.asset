@@ -10,30 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 46250cbe4cea9e342a26971cf4d22c99, type: 3}
-  m_Name: DrillBasic
+  m_Name: DrillJackhammer
   m_EditorClassIdentifier: 
-  _id: drill_basic
-  _displayName: Maos
+  _id: drill_jackhammer
+  _displayName: Britadeira
   _equipmentType: 0
-  _tier: 1
-  _price: 0
+  _tier: 3
+  _price: 300
   _icon: {fileID: 0}
-  _description: A ferramenta inicial. Simples, confiavel e sempre disponivel.
-  _isDefault: 1
-  _drillToolData: {fileID: 11400000, guid: 23c42c27a9454c31b6be8e2b2b98db1e, type: 2}
+  _description: Alta cadencia para atravessar terreno resistente com eficiencia.
+  _isDefault: 0
+  _drillToolData: {fileID: 11400000, guid: e77e68fe1e4597d4a92cd818a08a1951, type: 2}
   _launcherData: {fileID: 0}
   _maximumUpgradeLevel: 3
   _drillUpgradeLevels:
-  - _price: 50
-    _digDamage: 1.05
-    _energyConsumption: 7.5
-    _digSpeed: 66
-  - _price: 100
-    _digDamage: 1.1
-    _energyConsumption: 7
-    _digSpeed: 72
-  - _price: 200
-    _digDamage: 1.2
+  - _price: 300
+    _digDamage: 1.35
     _energyConsumption: 6.5
-    _digSpeed: 80
+    _digSpeed: 132
+  - _price: 600
+    _digDamage: 1.45
+    _energyConsumption: 6
+    _digSpeed: 144
+  - _price: 1200
+    _digDamage: 1.6
+    _energyConsumption: 5.5
+    _digSpeed: 156
   _launcherUpgradeLevels: []

@@ -6,11 +6,13 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: DefaultDrillTool
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2e2b2f72d4d49d596fdc698d7dd7b22, type: 3}
+  m_Name: DefaultDrillTool
   m_EditorClassIdentifier: 
-  _toolName: Default Drill
+  _toolName: Maos
   _icon: {fileID: 0}
   _digDamage: 1
   _energyConsumption: 8

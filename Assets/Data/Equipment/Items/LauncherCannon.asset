@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 46250cbe4cea9e342a26971cf4d22c99, type: 3}
-  m_Name: LauncherPower
+  m_Name: LauncherCannon
   m_EditorClassIdentifier: 
-  _id: launcher_power
-  _displayName: Estilingue
+  _id: launcher_cannon
+  _displayName: Canhao
   _equipmentType: 1
-  _tier: 2
-  _price: 150
+  _tier: 3
+  _price: 450
   _icon: {fileID: 0}
-  _description: Um impulso mais forte usando o mesmo minigame de barra por enquanto.
+  _description: Forca elevada para iniciar a run em maior velocidade.
   _isDefault: 0
   _drillToolData: {fileID: 0}
-  _launcherData: {fileID: 11400000, guid: 4dd06f55cd804488919016fe28d19026, type: 2}
+  _launcherData: {fileID: 11400000, guid: 9b81b7bae1d1a4043bfdfdcd44871be5, type: 2}
   _maximumUpgradeLevel: 3
   _drillUpgradeLevels: []
   _launcherUpgradeLevels:
-  - _price: 150
-  - _price: 300
-  - _price: 600
+  - _price: 400
+  - _price: 800
+  - _price: 1600

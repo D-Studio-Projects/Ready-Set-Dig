@@ -13,20 +13,18 @@ MonoBehaviour:
   m_Name: LauncherBasic
   m_EditorClassIdentifier: 
   _id: launcher_basic
-  _displayName: Lancador Basico
+  _displayName: Prancha
   _equipmentType: 1
+  _tier: 1
   _price: 0
   _icon: {fileID: 0}
-  _description: Forca de lancamento atual.
+  _description: O lancador inicial, equilibrado para aprender o tempo da barra.
   _isDefault: 1
   _drillToolData: {fileID: 0}
   _launcherData: {fileID: 11400000, guid: d9849d9c163f4712b2f9369109087f69, type: 2}
   _maximumUpgradeLevel: 3
   _drillUpgradeLevels: []
   _launcherUpgradeLevels:
-  - _price: 50
-    _launchForceMultiplier: 1.05
-  - _price: 100
-    _launchForceMultiplier: 1.1
-  - _price: 200
-    _launchForceMultiplier: 1.15
+  - _price: 75
+  - _price: 150
+  - _price: 300
