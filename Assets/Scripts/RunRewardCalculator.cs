@@ -44,23 +44,26 @@ public class RunRewardCalculator : MonoBehaviour
     {
         long moneyFromBlocks = MultiplyInteger(_result.DugBlocks, _moneyPerBlock);
         long moneyFromDepth = MultiplyDepth(_result.Depth, _moneyPerDepth);
-        long scoreFromBlocks = MultiplyInteger(_result.DugBlocks, _scorePerBlock);
-        long scoreFromDepth = MultiplyDepth(_result.Depth, _scorePerDepth);
         long baseMoney = AddSaturated(
             AddSaturated(moneyFromBlocks, moneyFromDepth),
-            _result.CollectedMoney
-        );
+            _result.CollectedMoney);
 
         return new RunReward(
             ApplyMoneyMultiplier(baseMoney, _moneyMultiplier),
-            AddSaturated(scoreFromBlocks, scoreFromDepth)
+            CalculateScore(_result.DugBlocks, _result.Depth)
         );
+    }
+
+    public long CalculateScore(int _dugBlocks, float _depth)
+    {
+        long scoreFromBlocks = MultiplyInteger(_dugBlocks, _scorePerBlock);
+        long scoreFromDepth = MultiplyDepth(_depth, _scorePerDepth);
+        return AddSaturated(scoreFromBlocks, scoreFromDepth);
     }
 
     #endregion
 
     #region Private Methods
-
     private long MultiplyInteger(int _value, long _multiplier)
     {
         if (_value <= 0 || _multiplier <= 0)

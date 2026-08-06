@@ -128,11 +128,10 @@ public class RunResultUI : MonoBehaviour
     private void SetTexts(ProgressUpdate _update)
     {
         if (_titleText != null)
-            _titleText.text = "GAME OVER";
+            _titleText.text = "RESULTADO DA RUN";
 
         if (_reasonText != null)
             _reasonText.text = GetReasonText(_update.RunResult.EndReason);
-
         if (_timeText != null)
             _timeText.text = $"Tempo: {FormatTime(_update.RunResult.Time)}";
 
