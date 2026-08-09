@@ -43,8 +43,8 @@ MonoBehaviour:
     _noiseOffset: 1.5
   _minimumDirtRatio: 0.7
   _stoneWeight: 0.6
-  _ironWeight: 0.32
-  _goldWeight: 0.08
+  _ironWeight: 0
+  _goldWeight: 0
   _fallbackStoneStartDepth: 0
   _fallbackIronStartDepth: 32
   _fallbackGoldStartDepth: 96
