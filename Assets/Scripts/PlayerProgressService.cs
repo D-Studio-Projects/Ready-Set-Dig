@@ -33,6 +33,9 @@ public class PlayerProgressService : MonoBehaviour
     [SerializeField]
     private TerrainChunkManager _terrainChunkManager;
 
+    [SerializeField]
+    private MineralSpawner _mineralSpawner;
+
     [Header("Global Upgrade Balance")]
     [SerializeField]
     private GlobalUpgradeBalance _globalUpgradeBalance =
@@ -89,7 +92,6 @@ public class PlayerProgressService : MonoBehaviour
 
     private void Start()
     {
-        ResolveGlobalUpgradeTargets();
         ApplyGlobalUpgradeEffects(true);
     }
 
@@ -1831,24 +1833,10 @@ private class ProgressData : IProgressDataOperations
         );
     }
 
-    private void ResolveGlobalUpgradeTargets()
-    {
-        if (_playerMovement == null)
-            _playerMovement = FindFirstObjectByType<PlayerMovement>();
-
-        if (_playerEnergy == null)
-            _playerEnergy = FindFirstObjectByType<PlayerEnergy>();
-
-        if (_terrainChunkManager == null)
-            _terrainChunkManager = FindFirstObjectByType<TerrainChunkManager>();
-    }
-
     private void ApplyGlobalUpgradeEffects(bool _refillEnergy)
     {
         if (!EnsureLoaded())
             return;
-
-        ResolveGlobalUpgradeTargets();
 
         if (_playerMovement != null)
         {
@@ -1872,6 +1860,13 @@ private class ProgressData : IProgressDataOperations
             _terrainChunkManager.ApplyLuckMultiplier(
                 GetGlobalUpgradeMultiplier(GlobalUpgradeType.Luck),
                 false
+            );
+        }
+
+        if (_mineralSpawner != null)
+        {
+            _mineralSpawner.ApplyLuckMultiplier(
+                GetGlobalUpgradeMultiplier(GlobalUpgradeType.Luck)
             );
         }
     }
@@ -1905,6 +1900,13 @@ private class ProgressData : IProgressDataOperations
 
         if (_result.Depth < 0f || float.IsNaN(_result.Depth) || float.IsInfinity(_result.Depth))
             return false;
+
+        if (_result.CollectedMineralValue < 0f ||
+            float.IsNaN(_result.CollectedMineralValue) ||
+            float.IsInfinity(_result.CollectedMineralValue))
+        {
+            return false;
+        }
 
         return _result.DugBlocks >= 0 && _result.CollectedMoney >= 0;
     }
@@ -2074,6 +2076,26 @@ private class ProgressData : IProgressDataOperations
     }
 
 #if UNITY_EDITOR
+    [ContextMenu("Development/Clear Save (Play Mode)")]
+    private void ClearSaveForDevelopment()
+    {
+        if (!Application.isPlaying)
+        {
+            Debug.LogWarning(
+                "Enter Play Mode before clearing the player progress.",
+                this
+            );
+            return;
+        }
+
+        DeleteProgress();
+
+        Debug.Log(
+            $"Player progress cleared and recreated at: {SaveFilePath}",
+            this
+        );
+    }
+
     [ContextMenu("Development/Add Test Money")]
     private void AddTestMoney()
     {
