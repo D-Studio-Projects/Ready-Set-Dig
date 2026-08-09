@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using System;
+using UnityEngine;
 
 public class RunStatistics : MonoBehaviour
 {
@@ -10,20 +11,13 @@ public class RunStatistics : MonoBehaviour
     [SerializeField]
     private Transform _player;
 
-    [Header("Resource Money")]
-    [SerializeField]
-    [Min(0)]
-    private int _ironMoneyPerCell = 2;
-
-    [SerializeField]
-    [Min(0)]
-    private int _goldMoneyPerCell = 5;
 
     private float _time;
     private float _distance;
     private float _maxDepth;
     private float _startPositionY;
     private long _money;
+    private double _collectedMineralValue;
     private int _dugBlocks;
     private int _dashCount;
     private bool _hasRunStarted;
@@ -40,7 +34,14 @@ public class RunStatistics : MonoBehaviour
 
     public float MaxDepth => _maxDepth;
 
-    public long Money => _money;
+    public long Money => AddSaturated(
+        _money,
+        FloorMineralValue(_collectedMineralValue)
+    );
+
+    public float CollectedMineralValue => _collectedMineralValue >= float.MaxValue
+        ? float.MaxValue
+        : (float)_collectedMineralValue;
 
     public int DugBlocks => _dugBlocks;
 
@@ -101,6 +102,17 @@ public class RunStatistics : MonoBehaviour
         _money = AddSaturated(_money, _amount);
     }
 
+    public void AddMineralValue(float _amount)
+    {
+        if (_amount <= 0f || float.IsNaN(_amount) || float.IsInfinity(_amount))
+            return;
+
+        _collectedMineralValue = Math.Min(
+            float.MaxValue,
+            _collectedMineralValue + _amount
+        );
+    }
+
     public void AddDiggedBlocks(int _amount)
     {
         if (_amount <= 0)
@@ -112,16 +124,6 @@ public class RunStatistics : MonoBehaviour
     public void AddDigResult(DigResult _result)
     {
         AddDiggedBlocks(_result.TotalCells);
-
-        long ironMoney = MultiplySaturated(
-            _result.IronCells,
-            Mathf.Max(0, _ironMoneyPerCell)
-        );
-        long goldMoney = MultiplySaturated(
-            _result.GoldCells,
-            Mathf.Max(0, _goldMoneyPerCell)
-        );
-        AddMoney(AddSaturated(ironMoney, goldMoney));
     }
 
     public void IncrementDashCount()
@@ -137,6 +139,7 @@ public class RunStatistics : MonoBehaviour
             _maxDepth,
             _dugBlocks,
             _money,
+            CollectedMineralValue,
             _reason
         );
     }
@@ -148,6 +151,7 @@ public class RunStatistics : MonoBehaviour
         _maxDepth = 0f;
         _startPositionY = 0f;
         _money = 0;
+        _collectedMineralValue = 0d;
         _dugBlocks = 0;
         _dashCount = 0;
         _hasRunStarted = false;
@@ -169,13 +173,15 @@ public class RunStatistics : MonoBehaviour
         _maxDepth = Mathf.Max(_maxDepth, currentDepth);
     }
 
-    private long MultiplySaturated(int _amount, int _value)
+    private long FloorMineralValue(double _value)
     {
-        if (_amount <= 0 || _value <= 0)
+        if (_value <= 0d || double.IsNaN(_value))
             return 0;
 
-        decimal result = (decimal)_amount * _value;
-        return result >= long.MaxValue ? long.MaxValue : (long)result;
+        if (_value >= long.MaxValue || double.IsPositiveInfinity(_value))
+            return long.MaxValue;
+
+        return (long)Math.Floor(_value);
     }
 
     private long AddSaturated(long _left, long _right)
@@ -191,5 +197,3 @@ public class RunStatistics : MonoBehaviour
 
     #endregion
 }
-
-
