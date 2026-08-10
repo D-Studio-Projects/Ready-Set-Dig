@@ -9,7 +9,10 @@ public class TerrainBase : MonoBehaviour
         Dirt = 1,
         Stone = 2,
         Iron = 3,
-        Gold = 4
+        Gold = 4,
+        Sapphire = 5,
+        Ruby = 6,
+        Diamond = 7
     }
 
     [Header("Terrain Size")]
@@ -135,4 +138,3 @@ public class TerrainBase : MonoBehaviour
         return changedCells;
     }
 }
-

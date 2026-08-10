@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 926f2eeaf4074514a963e7d5f2435d6c, type: 3}
+  m_Name: TerrainVisualPalette
+  m_EditorClassIdentifier: 
+  _tileSizeInCells: 128
+  _pixelsPerCell: 1
+  _definitions:
+  - _terrainType: 1
+    _variations:
+    - {fileID: -5176223374550789747, guid: 40cec0c2e6059e7449b1f9f0f8c1da33, type: 3}
+    - {fileID: 7559957844023462362, guid: 40cec0c2e6059e7449b1f9f0f8c1da33, type: 3}
+    - {fileID: -6565214954524066760, guid: 40cec0c2e6059e7449b1f9f0f8c1da33, type: 3}
+    - {fileID: -4525901671914439419, guid: 40cec0c2e6059e7449b1f9f0f8c1da33, type: 3}
+    - {fileID: -6929769433750148112, guid: 40cec0c2e6059e7449b1f9f0f8c1da33, type: 3}
+    _fallbackColor: {r: 0.35, g: 0.22, b: 0.12, a: 1}
+  - _terrainType: 2
+    _variations: []
+    _fallbackColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  - _terrainType: 3
+    _variations: []
+    _fallbackColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  - _terrainType: 4
+    _variations: []
+    _fallbackColor: {r: 1, g: 0.75, b: 0, a: 1}
+  - _terrainType: 5
+    _variations: []
+    _fallbackColor: {r: 0.15, g: 0.55, b: 1, a: 1}
+  - _terrainType: 6
+    _variations: []
+    _fallbackColor: {r: 0.9, g: 0.12, b: 0.22, a: 1}
+  - _terrainType: 7
+    _variations: []
+    _fallbackColor: {r: 0.65, g: 0.95, b: 1, a: 1}
+  _missingVisualColor: {r: 1, g: 0, b: 1, a: 1}

@@ -229,6 +229,12 @@ public class TerrainChunk : MonoBehaviour
         return transform.TransformPoint(new Vector2(localX, localY));
     }
 
+    public int GetGlobalDepth(int _localY)
+    {
+        int localY = Mathf.Clamp(_localY, 0, _height - 1);
+        return _startingDepth + (_height - 1 - localY);
+    }
+
     public DigResult Dig(Vector2 _worldPosition, float _radius)
     {
         if (!_isInitialized)
@@ -482,11 +488,6 @@ public class TerrainChunk : MonoBehaviour
         }
 
         _spawnedObstacles.Clear();
-    }
-
-    private int GetGlobalDepth(int _localY)
-    {
-        return _startingDepth + (_height - 1 - _localY);
     }
 
     private void EnsureMap()
