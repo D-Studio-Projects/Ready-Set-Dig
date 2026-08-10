@@ -128,14 +128,11 @@ public class TerrainChunkManager : MonoBehaviour
         }
 
         ConfigureChunkDimensions();
-        _worldSurfaceY = _usePlayerPositionAsSurface
-            ? _player.position.y - Mathf.Max(.5f, _surfaceDistanceBelowPlayer)
-            : _surfaceWorldY;
-        _worldCenterX = _player.position.x;
+        UpdateWorldOrigin();
         CreateChunkPool();
         _isInitialized = true;
 
-        EnsureChunksAroundPlayer();
+        EnsurePlayerChunks();
     }
 
     private void Update()
@@ -229,8 +226,8 @@ public class TerrainChunkManager : MonoBehaviour
 
         ReleaseAllActiveChunks();
         _hasLoggedPoolLimit = false;
-        _worldCenterX = _player.position.x;
-        EnsureChunksAroundPlayer();
+        UpdateWorldOrigin();
+        EnsurePlayerChunks();
         AlignUpcomingChunksWithPlayer();
     }
 
@@ -393,12 +390,28 @@ public class TerrainChunkManager : MonoBehaviour
     private void EnsureChunksAroundPlayer()
     {
         int playerChunkIndex = GetChunkIndex(_player.position.y);
-        float cameraBottom = _camera.transform.position.y - _camera.orthographicSize;
-        int cameraBottomChunkIndex = GetChunkIndex(cameraBottom - _cameraPreloadMargin);
-        int lastRequiredChunkIndex = Mathf.Max(
-            playerChunkIndex + _chunksAhead,
-            cameraBottomChunkIndex
-        );
+        int lastRequiredChunkIndex = playerChunkIndex + _chunksAhead;
+
+        if (IsCameraTrackingPlayer())
+        {
+            float cameraBottom = _camera.transform.position.y - _camera.orthographicSize;
+            int cameraBottomChunkIndex = GetChunkIndex(
+                cameraBottom - _cameraPreloadMargin
+            );
+            lastRequiredChunkIndex = Mathf.Max(
+                lastRequiredChunkIndex,
+                cameraBottomChunkIndex
+            );
+        }
+
+        for (int chunkIndex = playerChunkIndex; chunkIndex <= lastRequiredChunkIndex; chunkIndex++)
+            EnsureChunk(chunkIndex);
+    }
+
+    private void EnsurePlayerChunks()
+    {
+        int playerChunkIndex = GetChunkIndex(_player.position.y);
+        int lastRequiredChunkIndex = playerChunkIndex + _chunksAhead;
 
         for (int chunkIndex = playerChunkIndex; chunkIndex <= lastRequiredChunkIndex; chunkIndex++)
             EnsureChunk(chunkIndex);
@@ -467,6 +480,9 @@ public class TerrainChunkManager : MonoBehaviour
 
     private void RemoveChunksAboveCamera()
     {
+        if (!IsCameraTrackingPlayer())
+            return;
+
         float cameraTop = _camera.transform.position.y + _camera.orthographicSize;
         int firstChunkToKeep = GetChunkIndex(cameraTop + _unloadMargin);
 
@@ -555,6 +571,28 @@ public class TerrainChunkManager : MonoBehaviour
             return 1f;
 
         return Mathf.Max(1f, _multiplier);
+    }
+
+    private void UpdateWorldOrigin()
+    {
+        _worldSurfaceY = _usePlayerPositionAsSurface
+            ? _player.position.y - _surfaceDistanceBelowPlayer
+            : _surfaceWorldY;
+        _worldCenterX = _player.position.x;
+    }
+
+    private bool IsCameraTrackingPlayer()
+    {
+        if (_camera == null || _player == null)
+            return false;
+
+        float maximumTrackingDistance =
+            _camera.orthographicSize * 2f +
+            _cameraPreloadMargin +
+            _unloadMargin +
+            _chunkWorldHeight;
+        return Mathf.Abs(_camera.transform.position.y - _player.position.y) <=
+               maximumTrackingDistance;
     }
 
     #endregion

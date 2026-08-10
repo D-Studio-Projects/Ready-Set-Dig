@@ -24,16 +24,16 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Curved Horizontal Movement")]
     [SerializeField]
-    private float _horizontalSpeed = 5f;
+    private float _horizontalSpeed = 7f;
 
     [SerializeField]
-    private float _horizontalAcceleration = 10f;
+    private float _horizontalAcceleration = 24f;
 
     [SerializeField]
-    private float _curveTiltDegrees = 20f;
+    private float _curveTiltDegrees = 22f;
 
     [SerializeField]
-    private float _rotationSmoothing = 10f;
+    private float _rotationSmoothing = 12f;
 
     [Header("Dash")]
     [SerializeField]
@@ -49,7 +49,6 @@ public class PlayerMovement : MonoBehaviour
     private float _dashDuration = .4f;
 
     private bool _isMoving;
-    private bool _canMoveHorizontal;
     private bool _isDashing;
     private bool _isPausedByObstacle;
     private float _currentFallSpeed;
@@ -115,7 +114,7 @@ public class PlayerMovement : MonoBehaviour
     {
         _input = 0f;
 
-        if (_isMoving && !_isPausedByObstacle && _canMoveHorizontal)
+        if (_isMoving && !_isPausedByObstacle)
             _input = Input.GetAxisRaw("Horizontal");
 
         if (_isMoving &&
@@ -152,18 +151,6 @@ public class PlayerMovement : MonoBehaviour
         ApplyCurvedRotation();
     }
 
-    private void OnTriggerEnter2D(Collider2D _other)
-    {
-        if (_other.CompareTag("Ground"))
-            _canMoveHorizontal = true;
-    }
-
-    private void OnTriggerExit2D(Collider2D _other)
-    {
-        if (_other.CompareTag("Ground"))
-            _canMoveHorizontal = false;
-    }
-
     #endregion
 
     #region Public Methods
@@ -188,7 +175,6 @@ public class PlayerMovement : MonoBehaviour
     {
         SetObstaclePause(false);
         _isMoving = true;
-        _canMoveHorizontal = true;
         _movementStartedFrame = Time.frameCount;
         _lastTrackedY = transform.position.y;
         _currentFallSpeed = Mathf.Lerp(
@@ -208,7 +194,6 @@ public class PlayerMovement : MonoBehaviour
     public void StopMovement()
     {
         _isMoving = false;
-        _canMoveHorizontal = false;
         SetObstaclePause(false);
         EndDash();
         _currentFallSpeed = 0f;
@@ -225,7 +210,6 @@ public class PlayerMovement : MonoBehaviour
     public void ResetMovement(Vector3 _position, Quaternion _rotation)
     {
         _isMoving = false;
-        _canMoveHorizontal = false;
         _currentFallSpeed = 0f;
         _currentHorizontalSpeed = 0f;
         _input = 0f;
@@ -277,7 +261,6 @@ public class PlayerMovement : MonoBehaviour
         EndDash();
         _input = 0f;
         _currentHorizontalSpeed = 0f;
-        _canMoveHorizontal = false;
         SetObstaclePause(true);
         HoldPositionForObstacle();
         return true;
@@ -289,7 +272,6 @@ public class PlayerMovement : MonoBehaviour
             return false;
 
         SetObstaclePause(false);
-        _canMoveHorizontal = true;
         _lastTrackedY = transform.position.y;
 
         if (_rigidbody != null)
@@ -388,19 +370,29 @@ public class PlayerMovement : MonoBehaviour
 
     private void ApplyCurvedRotation()
     {
-        float targetZ = -Mathf.Sign(_currentHorizontalSpeed) * _curveTiltDegrees;
-
-        if (Mathf.Abs(_currentHorizontalSpeed) < .05f)
-            targetZ = 0f;
-
-        Quaternion targetRotation = Quaternion.Euler(0f, 0f, targetZ);
-        transform.rotation = Quaternion.Lerp(
-            transform.rotation,
-            targetRotation,
-            _rotationSmoothing *
-            _steeringSpeedMultiplier *
-            UnityEngine.Time.fixedDeltaTime
+        float maximumHorizontalSpeed = Mathf.Max(
+            .01f,
+            _horizontalSpeed * _steeringSpeedMultiplier
         );
+        float steeringAmount = Mathf.Clamp(
+            _currentHorizontalSpeed / maximumHorizontalSpeed,
+            -1f,
+            1f
+        );
+        float targetZ = -steeringAmount * _curveTiltDegrees;
+        float smoothing = Mathf.Max(
+            0f,
+            _rotationSmoothing * _steeringSpeedMultiplier
+        );
+        float rotationProgress = 1f - Mathf.Exp(
+            -smoothing * UnityEngine.Time.fixedDeltaTime
+        );
+        float nextRotation = Mathf.LerpAngle(
+            _rigidbody.rotation,
+            targetZ,
+            rotationProgress
+        );
+        _rigidbody.MoveRotation(nextRotation);
     }
 
     private void UpdateDashTimer()
